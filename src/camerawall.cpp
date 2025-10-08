@@ -1,4 +1,5 @@
 #include "camerawall.h"
+#include "util.h"
 
 #include <QMenuBar>
 #include <QStatusBar>
@@ -7,6 +8,7 @@
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QContextMenuEvent>
+#include <QtMultimedia/QVideoFrame>
 
 // ======= ctor =======
 CameraWall::CameraWall()
@@ -181,11 +183,12 @@ void CameraWall::onRemoveSelected()
 {
     if (selectedIndex < 0 || selectedIndex >= cams.size())
         return;
+
     if (QMessageBox::question(this, "Törlés", "Biztosan törlöd a kijelölt kamerát?") == QMessageBox::Yes)
     {
+        prepareModelMutation(selectedIndex); // <<-- ÚJ
         cams.removeAt(selectedIndex);
         selectedIndex = -1;
-        ensureStreamsSize();
         saveCamerasToIni();
         rebuildTiles();
     }
@@ -195,9 +198,9 @@ void CameraWall::onClearAll()
 {
     if (QMessageBox::question(this, "Összes törlése", "Biztosan törlöd az összes kamerát?") == QMessageBox::Yes)
     {
+        prepareModelMutation(); // <<-- ÚJ
         cams.clear();
         selectedIndex = -1;
-        stopAndDeleteAllStreams();
         saveCamerasToIni();
         rebuildTiles();
     }
@@ -314,16 +317,19 @@ void CameraWall::onTileFullscreenRequested(VideoTile *src)
 
 void CameraWall::exitFocus()
 {
+    if (m_highFirstFrameConn)
+    {
+        QObject::disconnect(m_highFirstFrameConn);
+        m_highFirstFrameConn = {};
+    }
+    m_focusCamIdx = -1;
+
     if (!focusDlg)
         return;
 
-    // válaszd le a high playert a dummy sinkre, hogy a stream megmaradjon a háttérben
-    int idx = tileIndexMap.value(focusTile, -1);
-    if (idx >= 0)
-        detachHigh(idx);
-
     if (focusTile)
     {
+        // a háttér stream-eket NEM állítjuk le – csak a csempét zárjuk
         focusTile->deleteLater();
         focusTile = nullptr;
     }
@@ -337,26 +343,54 @@ void CameraWall::enterFocus(int camIdx)
     if (camIdx < 0 || camIdx >= cams.size())
         return;
 
+    // 1) Low stream garantáltan menjen (ha ez sem megy, visszajelzünk és kilépünk)
     QString err;
-    if (!ensureHighConnected(camIdx, &err))
+    if (!ensureLowConnected(camIdx, &err))
     {
-        QMessageBox::warning(this, "Fókusz nézet", "Nem tudtam lekérni a fókusz (high) streamet: " + err);
+        QMessageBox::warning(this, "Fókusz nézet",
+                             "Nem tudtam elérni a low streamet: " + err);
         return;
     }
 
+    // 2) High streamet elindítjuk a háttérben – ha nem jön, marad a low
+    ensureHighConnected(camIdx, nullptr);
+
+    // 3) Fókusz UI
     focusDlg = new QDialog(this, Qt::Window | Qt::FramelessWindowHint);
     auto *lay = new QVBoxLayout(focusDlg);
     lay->setContentsMargins(0, 0, 0, 0);
+
     focusTile = new VideoTile(m_limitFps15, focusDlg);
     lay->addWidget(focusTile);
     focusTile->setName(cams[camIdx].name);
 
-    // A high lejátszót a fókusz csempére kötjük
-    attachHighToTile(camIdx, focusTile);
-
     connect(focusTile, &VideoTile::fullscreenRequested, this, &CameraWall::exitFocus);
+
     focusDlg->installEventFilter(this);
     focusDlg->showFullScreen();
+
+    // 4) AZONNAL tegyük rá a low streamet (így nincs fekete képernyő)
+    attachLowToTile(camIdx, focusTile);
+
+    // 5) Ha megérkezik az első képkocka a high-ból, automatikus csere high-ra
+    if (m_highFirstFrameConn)
+        QObject::disconnect(m_highFirstFrameConn);
+    m_focusCamIdx = camIdx;
+
+    if (m_streams[camIdx].dummyHigh)
+    {
+        m_highFirstFrameConn =
+            connect(m_streams[camIdx].dummyHigh, &QVideoSink::videoFrameChanged,
+                    this, [this](const QVideoFrame &f)
+                    {
+                        if (!focusTile || !f.isValid() || m_focusCamIdx < 0)
+                            return;
+                        // csere high-ra
+                        attachHighToTile(m_focusCamIdx, focusTile);
+                        // csak egyszer kell
+                        QObject::disconnect(m_highFirstFrameConn);
+                        m_highFirstFrameConn = {}; });
+    }
 }
 
 // ======= stream pool =======
@@ -664,99 +698,112 @@ void CameraWall::loadFromIni()
     ensureStreamsSize();
 }
 
-void CameraWall::saveCamerasToIni()
-{
-    QSettings s(Util::iniPath(), QSettings::IniFormat);
-    s.beginGroup("Cameras");
-    s.remove("");
-    s.setValue("count", cams.size());
-    for (int i = 0; i < cams.size(); ++i)
+    void CameraWall::prepareModelMutation(int removingIdx)
     {
-        s.beginGroup(QString("Camera%1").arg(i));
-        const Camera &c = cams[i];
-        s.setValue("name", c.name);
-        s.setValue("mode", c.mode == Camera::ONVIF ? "onvif" : "rtsp");
-        if (c.mode == Camera::RTSP)
+        Q_UNUSED(removingIdx);
+        // 1) Fókusz-dialógus bezárása (ha a törölt/átalakított elemhez kapcsolódhat)
+        if (focusDlg)
+            exitFocus();
+
+        // 2) Minden csempe lejátszójának leállítása, hogy ne érkezzen több frame destroy közben
+        for (auto *t : std::as_const(tiles))
+            if (t)
+                t->stop();
+    }
+
+    void CameraWall::saveCamerasToIni()
+    {
+        QSettings s(Util::iniPath(), QSettings::IniFormat);
+        s.beginGroup("Cameras");
+        s.remove("");
+        s.setValue("count", cams.size());
+        for (int i = 0; i < cams.size(); ++i)
         {
-            s.setValue("rtsp", QString::fromUtf8(c.rtspManual.toEncoded()));
-        }
-        else
-        {
-            s.setValue("onvif_device_xaddr", c.onvifDeviceXAddr.toString());
-            s.setValue("onvif_media_xaddr", c.onvifMediaXAddr.toString());
-            s.setValue("onvif_user", c.onvifUser);
-            s.setValue("onvif_pass", c.onvifPass);
-            s.setValue("onvif_low_token", c.onvifLowToken);
-            s.setValue("onvif_high_token", c.onvifHighToken);
-            s.setValue("rtsp_low_cached", c.rtspUriLowCached);
-            s.setValue("rtsp_high_cached", c.rtspUriHighCached);
+            s.beginGroup(QString("Camera%1").arg(i));
+            const Camera &c = cams[i];
+            s.setValue("name", c.name);
+            s.setValue("mode", c.mode == Camera::ONVIF ? "onvif" : "rtsp");
+            if (c.mode == Camera::RTSP)
+            {
+                s.setValue("rtsp", QString::fromUtf8(c.rtspManual.toEncoded()));
+            }
+            else
+            {
+                s.setValue("onvif_device_xaddr", c.onvifDeviceXAddr.toString());
+                s.setValue("onvif_media_xaddr", c.onvifMediaXAddr.toString());
+                s.setValue("onvif_user", c.onvifUser);
+                s.setValue("onvif_pass", c.onvifPass);
+                s.setValue("onvif_low_token", c.onvifLowToken);
+                s.setValue("onvif_high_token", c.onvifHighToken);
+                s.setValue("rtsp_low_cached", c.rtspUriLowCached);
+                s.setValue("rtsp_high_cached", c.rtspUriHighCached);
+            }
+            s.endGroup();
         }
         s.endGroup();
+        s.sync();
     }
-    s.endGroup();
-    s.sync();
-}
 
-void CameraWall::saveViewToIni()
-{
-    QSettings s(Util::iniPath(), QSettings::IniFormat);
-    s.beginGroup("View");
-    s.setValue("gridN", gridN);
-    s.setValue("fpsLimit15", m_limitFps15);
-    s.setValue("autoRotate10s", m_autoRotate);
-    s.setValue("keepBackground", m_keepBackgroundStreams);
-    s.endGroup();
-    s.sync();
-}
-
-// ======= URL/ONVIF =======
-
-QUrl CameraWall::playbackUrlFor(int camIdx, bool high, QString *errOut)
-{
-    if (camIdx < 0 || camIdx >= cams.size())
-        return QUrl();
-    Camera &c = cams[camIdx];
-    if (c.mode == Camera::RTSP)
-        return c.rtspManual;
-
-    QString cached = high ? c.rtspUriHighCached : c.rtspUriLowCached;
-    if (!cached.isEmpty())
-        return Util::urlFromEncoded(cached);
-
-    OnvifClient cli;
-    QString err;
-    QUrl media = c.onvifMediaXAddr;
-    if (media.isEmpty())
+    void CameraWall::saveViewToIni()
     {
-        QUrl med;
-        if (!cli.getCapabilities(c.onvifDeviceXAddr, c.onvifUser, c.onvifPass, med, &err))
+        QSettings s(Util::iniPath(), QSettings::IniFormat);
+        s.beginGroup("View");
+        s.setValue("gridN", gridN);
+        s.setValue("fpsLimit15", m_limitFps15);
+        s.setValue("autoRotate10s", m_autoRotate);
+        s.setValue("keepBackground", m_keepBackgroundStreams);
+        s.endGroup();
+        s.sync();
+    }
+
+    // ======= URL/ONVIF =======
+
+    QUrl CameraWall::playbackUrlFor(int camIdx, bool high, QString *errOut)
+    {
+        if (camIdx < 0 || camIdx >= cams.size())
+            return QUrl();
+        Camera &c = cams[camIdx];
+        if (c.mode == Camera::RTSP)
+            return c.rtspManual;
+
+        QString cached = high ? c.rtspUriHighCached : c.rtspUriLowCached;
+        if (!cached.isEmpty())
+            return Util::applyRtspCredentials(Util::urlFromEncoded(cached), c.onvifUser, c.onvifPass);
+
+        OnvifClient cli;
+        QString err;
+        QUrl media = c.onvifMediaXAddr;
+        if (media.isEmpty())
+        {
+            QUrl med;
+            if (!cli.getCapabilities(c.onvifDeviceXAddr, c.onvifUser, c.onvifPass, med, &err))
+            {
+                if (errOut)
+                    *errOut = err;
+                return QUrl();
+            }
+            media = med;
+            c.onvifMediaXAddr = media;
+        }
+        QString token = high ? c.onvifHighToken : c.onvifLowToken;
+        if (token.isEmpty())
+        {
+            if (errOut)
+                *errOut = "Hiányzó ONVIF profil token";
+            return QUrl();
+        }
+
+        QString uri;
+        if (!cli.getStreamUri(media, c.onvifUser, c.onvifPass, token, uri, &err))
         {
             if (errOut)
                 *errOut = err;
             return QUrl();
         }
-        media = med;
-        c.onvifMediaXAddr = media;
+        if (high)
+            c.rtspUriHighCached = uri;
+        else
+            c.rtspUriLowCached = uri;
+        saveCamerasToIni();
+        return Util::applyRtspCredentials(Util::urlFromEncoded(uri), c.onvifUser, c.onvifPass);
     }
-    QString token = high ? c.onvifHighToken : c.onvifLowToken;
-    if (token.isEmpty())
-    {
-        if (errOut)
-            *errOut = "Hiányzó ONVIF profil token";
-        return QUrl();
-    }
-
-    QString uri;
-    if (!cli.getStreamUri(media, c.onvifUser, c.onvifPass, token, uri, &err))
-    {
-        if (errOut)
-            *errOut = err;
-        return QUrl();
-    }
-    if (high)
-        c.rtspUriHighCached = uri;
-    else
-        c.rtspUriLowCached = uri;
-    saveCamerasToIni();
-    return Util::urlFromEncoded(uri);
-}

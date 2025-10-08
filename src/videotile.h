@@ -9,6 +9,7 @@
 #include <QtMultimediaWidgets/QVideoWidget>
 #include <QtMultimedia/QMediaPlayer>
 #include <QtMultimedia/QAudioOutput>
+#include <QVBoxLayout>
 
 class VideoTile : public QWidget
 {
@@ -36,6 +37,9 @@ private:
     void flushFrame();
     void paintImage(const QImage &img);
     void setConnected(bool ok);
+    void switchToWidgetFallback(); // ÚJ
+    QVBoxLayout *m_layout{};       // ÚJ: a root layout eltárolása
+    bool m_widgetFallback{false};  // ÚJ: egyszer már átálltunk-e widgetre
 
 private:
     QMediaPlayer *m_player{};

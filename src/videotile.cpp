@@ -4,6 +4,7 @@
 #include <QMouseEvent>
 #include <QResizeEvent>
 #include <QSizePolicy>
+#include <QVBoxLayout>
 #include <QtMultimedia/QVideoFrame>
 
 VideoTile::VideoTile(bool limitFps15, QWidget *parent)
@@ -13,6 +14,7 @@ VideoTile::VideoTile(bool limitFps15, QWidget *parent)
       m_limitFps(limitFps15)
 {
     auto *layout = new QVBoxLayout(this);
+    m_layout = layout; // ÚJ
     layout->setContentsMargins(0, 0, 0, 0);
 
     if (m_limitFps)
@@ -161,7 +163,14 @@ void VideoTile::onFrame(const QVideoFrame &frame)
         return;
     const QImage img = frame.toImage();
     if (img.isNull())
+    {
+        if (!m_widgetFallback)
+        {
+            switchToWidgetFallback();
+            // a lejátszás már megy tovább ugyanazzal a playerrel, mostantól közvetlenül rajzol
+        }
         return;
+    }
     m_lastImage = img;
     setConnected(true);
     if (!m_fpsTimer.isActive())
@@ -187,4 +196,25 @@ void VideoTile::setConnected(bool ok)
     m_connected = ok;
     const char *col = ok ? "#43d18b" : "#ff6b6b";
     m_dot->setStyleSheet(QString("background:%1; border-radius:5px; border:1px solid rgba(255,255,255,0.25);").arg(col));
+}
+
+void VideoTile::switchToWidgetFallback()
+{
+    m_widgetFallback = true;
+
+    // rejtsük el a vásznat (ha volt), és álljunk át közvetlen videóra
+    if (!m_video)
+    {
+        m_video = new QVideoWidget(this);
+        m_video->setAspectRatioMode(Qt::IgnoreAspectRatio);
+        m_video->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        if (m_layout)
+            m_layout->addWidget(m_video);
+    }
+    if (m_canvas)
+        m_canvas->hide();
+
+    // váltsunk sink → video output
+    m_player->setVideoSink(nullptr);
+    m_player->setVideoOutput(m_video);
 }

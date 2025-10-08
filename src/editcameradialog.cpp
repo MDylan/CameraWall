@@ -1,5 +1,6 @@
 #include "editcameradialog.h"
 #include <QVBoxLayout>
+#include "util.h"
 
 using namespace Util;
 
@@ -90,7 +91,7 @@ Camera EditCameraDialog::cameraResult() const
     {
         c.mode = Camera::RTSP;
         c.name = nameRtsp->text().trimmed();
-        c.rtspManual = urlFromEncoded(urlRtsp->text().trimmed());
+        c.rtspManual = Util::urlFromEncoded(urlRtsp->text().trimmed());
         if (c.name.isEmpty())
             c.name = c.rtspManual.host();
     }

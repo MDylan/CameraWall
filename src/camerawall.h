@@ -51,6 +51,9 @@ private:
     void loadFromIni();
     void saveCamerasToIni();
     void saveViewToIni();
+    QMetaObject::Connection m_highFirstFrameConn{};
+    int m_focusCamIdx{-1};
+    void prepareModelMutation(int removingIdx = -1); // stop lejátszók, fókusz kilépés
 
     // ---- Háttér stream pool ----
     struct StreamEntry
