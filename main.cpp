@@ -540,7 +540,12 @@ private:
         tiles.clear();
         tileIndexMap.clear();
 
-        // Update row/column stretch to make grid cells even
+        // Reset all stretches to 0 first (avoid leftover rows/cols from previous grid)
+        for (int r = 0; r < 9; ++r)
+            grid->setRowStretch(r, 0);
+        for (int c = 0; c < 9; ++c)
+            grid->setColumnStretch(c, 0);
+        // Update row/column stretch to make grid cells even for current gridN
         for (int r = 0; r < gridN; ++r)
             grid->setRowStretch(r, 1);
         for (int c = 0; c < gridN; ++c)
@@ -558,6 +563,8 @@ private:
         }
 
         const int pages = qMax(1, (cams.size() + perPage() - 1) / perPage());
+        if (currentPage >= pages)
+            currentPage = 0; // clamp page index when grid size changes or cams removed
         if (cams.size() > perPage())
             rotateTimer.start();
         else
