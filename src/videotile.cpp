@@ -1,8 +1,10 @@
 #include "videotile.h"
+
 #include <QVBoxLayout>
-#include <QResizeEvent>
 #include <QMouseEvent>
-#include <QPixmap>
+#include <QResizeEvent>
+#include <QSizePolicy>
+#include <QtMultimedia/QVideoFrame>
 
 VideoTile::VideoTile(bool limitFps15, QWidget *parent)
     : QWidget(parent),
@@ -40,26 +42,29 @@ VideoTile::VideoTile(bool limitFps15, QWidget *parent)
     m_player->setAudioOutput(m_audio);
     m_audio->setMuted(true);
 
-    // Status dot + name
+    // státusz pötty + címke
     m_dot = new QLabel(this);
     m_dot->setFixedSize(10, 10);
     m_dot->setStyleSheet("background:#ff6b6b; border-radius:5px; border:1px solid rgba(255,255,255,0.25);");
     m_dot->raise();
+
     m_label = new QLabel(this);
     m_label->setStyleSheet("background:rgba(0,0,0,0.5); color:#e8eef7; padding:2px 8px; border-radius:8px;");
     m_label->raise();
 
-    // Fullscreen button
+    // teljes képernyő gomb
     btnFS = new QPushButton(QString::fromUtf8("⛶"), this);
     btnFS->setToolTip("Teljes képernyő");
     btnFS->setCursor(Qt::PointingHandCursor);
     btnFS->setFixedSize(28, 28);
-    btnFS->setStyleSheet("QPushButton{background:rgba(0,0,0,0.45); color:#e8eef7; border:1px solid rgba(255,255,255,0.25); border-radius:6px;} QPushButton:hover{background:rgba(0,0,0,0.6);}");
+    btnFS->setStyleSheet(
+        "QPushButton{background:rgba(0,0,0,0.45); color:#e8eef7; border:1px solid rgba(255,255,255,0.25); border-radius:6px;}"
+        "QPushButton:hover{background:rgba(0,0,0,0.6);}");
     btnFS->raise();
     connect(btnFS, &QPushButton::clicked, this, [this]
             { emit fullscreenRequested(); });
 
-    // Error label
+    // hiba label
     m_err = new QLabel(this);
     m_err->setStyleSheet("background:rgba(0,0,0,0.6); color:#ffb3b3; padding:6px 10px; border-radius:8px;");
     m_err->setWordWrap(true);
@@ -70,14 +75,28 @@ VideoTile::VideoTile(bool limitFps15, QWidget *parent)
     m_err->adjustSize();
     m_err->move(10, height() - m_err->height() - 10);
 
-    connect(m_player, &QMediaPlayer::errorOccurred, this, [this](QMediaPlayer::Error, const QString &s)
+    connect(m_player, &QMediaPlayer::errorOccurred, this,
+            [this](QMediaPlayer::Error, const QString &s)
             {
-        m_err->setText("Hiba: " + s);
-        m_err->setVisible(true);
-        setConnected(false); });
-    connect(m_player, &QMediaPlayer::playbackStateChanged, this, [this](QMediaPlayer::PlaybackState st)
+                m_err->setText("Hiba: " + s);
+                m_err->setVisible(true);
+                setConnected(false);
+            });
+    connect(m_player, &QMediaPlayer::playbackStateChanged, this,
+            [this](QMediaPlayer::PlaybackState st)
             {
-        if (st == QMediaPlayer::PlayingState) { m_err->setVisible(false); setConnected(true); } });
+                if (st == QMediaPlayer::PlayingState)
+                {
+                    m_err->setVisible(false);
+                    setConnected(true);
+                }
+            });
+
+    // alapértelmezett kimenet: saját lejátszó a saját kimenetre
+    if (m_limitFps)
+        m_player->setVideoSink(m_sink);
+    else
+        m_player->setVideoOutput(m_video);
 }
 
 void VideoTile::setName(const QString &name)
@@ -103,6 +122,20 @@ void VideoTile::stop()
     m_player->stop();
 }
 
+void VideoTile::applyToPlayer(QMediaPlayer *player)
+{
+    if (!player)
+        return;
+    // az audio-t is rákötjük, némítva
+    player->setAudioOutput(m_audio);
+    m_audio->setMuted(true);
+
+    if (m_limitFps)
+        player->setVideoSink(m_sink);
+    else
+        player->setVideoOutput(m_video);
+}
+
 void VideoTile::resizeEvent(QResizeEvent *e)
 {
     QWidget::resizeEvent(e);
@@ -126,7 +159,7 @@ void VideoTile::onFrame(const QVideoFrame &frame)
 {
     if (!frame.isValid())
         return;
-    QImage img = frame.toImage();
+    const QImage img = frame.toImage();
     if (img.isNull())
         return;
     m_lastImage = img;
