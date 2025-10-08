@@ -6,8 +6,9 @@
 // - Auth supported via username/password fields (embedded into the RTSP URL safely)
 // - Grid layouts: 2×2 (default) and 3×3; remembers last choice in INI
 // - If more cameras than fit on a page, auto-rotates pages every 10s
-// - Optional 15 FPS limit (default ON) using QVideoSink throttling; remembered in INI
-// - "Fill without cropping" (torzítás engedélyezett): always fills tile
+// - Optional 15 FPS limit (default ON) with QVideoSink throttling; remembered in INI
+// - Fill without cropping (aspect ignored) to always fill tiles
+// - PER-TILE fullscreen: double-click or ⛶ button toggles focused fullscreen view; double-click again to return
 // - Basic error overlays per tile
 //
 // Build (CMake example):
@@ -85,6 +86,16 @@ public:
         m_label->move(10, 10);
         m_label->raise();
 
+        // Teljes képernyő gomb (jobb alsó sarok)
+        btnFS = new QPushButton(QString::fromUtf8("⛶"), this);
+        btnFS->setToolTip("Teljes képernyő");
+        btnFS->setCursor(Qt::PointingHandCursor);
+        btnFS->setFixedSize(28, 28);
+        btnFS->setStyleSheet("QPushButton{background:rgba(0,0,0,0.45); color:#e8eef7; border:1px solid rgba(255,255,255,0.25); border-radius:6px;} QPushButton:hover{background:rgba(0,0,0,0.6);} ");
+        btnFS->raise();
+        connect(btnFS, &QPushButton::clicked, this, [this]
+                { emit fullscreenRequested(this); });
+
         // Hiba felirat
         m_err = new QLabel(this);
         m_err->setStyleSheet("background:rgba(0,0,0,0.6); color:#ffb3b3; padding:6px 10px; border-radius:8px;");
@@ -125,7 +136,12 @@ public:
         m_player->play();
     }
 
+    Camera currentCamera() const { return m_cam; }
+
     void stop() { m_player->stop(); }
+
+signals:
+    void fullscreenRequested(VideoTile *self);
 
 protected:
     void resizeEvent(QResizeEvent *e) override
@@ -133,9 +149,17 @@ protected:
         QWidget::resizeEvent(e);
         m_label->move(10, 10);
         m_err->move(10, height() - m_err->height() - 10);
+        if (btnFS)
+            btnFS->move(width() - btnFS->width() - 10, height() - btnFS->height() - 10);
         // Repaint last frame to match new size when throttling
         if (m_limitFps && !m_lastImage.isNull() && m_canvas)
             paintImage(m_lastImage);
+    }
+
+    void mouseDoubleClickEvent(QMouseEvent *e) override
+    {
+        Q_UNUSED(e)
+        emit fullscreenRequested(this);
     }
 
 private slots:
@@ -185,6 +209,7 @@ private:
 
     QLabel *m_label{};
     QLabel *m_err{};
+    QPushButton *btnFS{};
 };
 
 class AddCameraDialog : public QDialog
@@ -259,7 +284,7 @@ public:
         QAction *actReload = mCams->addAction("Újratöltés", this, &CameraWall::reloadAll);
 
         auto *mView = menuBar()->addMenu("&Nézet");
-        actFull = mView->addAction("Teljes képernyő", this, &CameraWall::toggleFullscreen);
+        actFull = mView->addAction("Teljes képernyő (ablak)", this, &CameraWall::toggleFullscreen);
         actFull->setShortcut(Qt::Key_F11);
 
         actFps = mView->addAction("FPS limit 15", this, &CameraWall::toggleFpsLimit);
@@ -280,7 +305,7 @@ public:
         connect(actGrid3, &QAction::triggered, this, [this]
                 { setGridN(3); });
 
-        statusBar()->showMessage("F11 – teljes képernyő • Jobb klikk a rácson: kameraválasztás");
+        statusBar()->showMessage("F11 – teljes képernyő • Duplakatt/⛶: fókusz nézet");
 
         connect(&rotateTimer, &QTimer::timeout, this, &CameraWall::nextPage);
         rotateTimer.setInterval(10000);
@@ -391,6 +416,31 @@ private slots:
         rebuildTiles();
     }
 
+    void onTileFullscreenRequested(VideoTile *src)
+    {
+        if (focusDlg)
+        {
+            exitFocus();
+            return;
+        }
+        enterFocus(src->currentCamera());
+    }
+
+    void exitFocus()
+    {
+        if (!focusDlg)
+            return;
+        if (focusTile)
+        {
+            focusTile->stop();
+            focusTile->deleteLater();
+            focusTile = nullptr;
+        }
+        focusDlg->close();
+        focusDlg->deleteLater();
+        focusDlg = nullptr;
+    }
+
 private:
     int perPage() const { return gridN * gridN; }
 
@@ -401,6 +451,25 @@ private:
         gridN = n;
         saveViewToIni();
         rebuildTiles();
+    }
+
+    void enterFocus(const Camera &cam)
+    {
+        focusDlg = new QDialog(this, Qt::Window | Qt::FramelessWindowHint);
+        focusDlg->setModal(true);
+        focusDlg->setAttribute(Qt::WA_DeleteOnClose, false);
+        auto *lay = new QVBoxLayout(focusDlg);
+        lay->setContentsMargins(0, 0, 0, 0);
+
+        focusTile = new VideoTile(m_limitFps15, focusDlg);
+        lay->addWidget(focusTile);
+        focusTile->setCamera(cam);
+        connect(focusTile, &VideoTile::fullscreenRequested, this, &CameraWall::exitFocus);
+
+        // ESC kilépés
+        focusDlg->installEventFilter(this);
+
+        focusDlg->showFullScreen();
     }
 
     void rebuildTiles()
@@ -452,8 +521,9 @@ private:
             grid->addWidget(tile, r, c);
             tile->setCamera(cams[i]);
 
-            // clickable selection
-            tile->installEventFilter(this);
+            // interactions
+            tile->installEventFilter(this); // for single-click selection
+            connect(tile, &VideoTile::fullscreenRequested, this, &CameraWall::onTileFullscreenRequested);
             tileIndexMap[tile] = i; // store flat index
             shown++;
         }
@@ -468,6 +538,16 @@ private:
 
     bool eventFilter(QObject *obj, QEvent *event) override
     {
+        if (obj == focusDlg && event->type() == QEvent::KeyPress)
+        {
+            auto *ke = static_cast<QKeyEvent *>(event);
+            if (ke->key() == Qt::Key_Escape)
+            {
+                exitFocus();
+                return true;
+            }
+        }
+
         if (event->type() == QEvent::MouseButtonRelease)
         {
             if (auto *w = qobject_cast<QWidget *>(obj))
@@ -556,6 +636,10 @@ private:
     QActionGroup *gridGroup{};
     QAction *actGrid2{};
     QAction *actGrid3{};
+
+    // Focus view
+    QDialog *focusDlg{};
+    VideoTile *focusTile{};
 };
 
 int main(int argc, char **argv)
