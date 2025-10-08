@@ -1,19 +1,33 @@
-cmake_minimum_required(VERSION 3.21)
-project(CameraWall)
+cmake_minimum_required(VERSION 3.22)
+project(CameraWall LANGUAGES CXX)
+
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# VÁLASSZ EGYET a telepített kitted szerint:
+# Qt6 csomagok
+find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets Network)
 
-# MinGW build esetén:
-set(CMAKE_PREFIX_PATH "C:/Qt/6.9.3/mingw_64")
+# Automatikus MOC/UIC/RCC
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
 
-# --- vagy ---
+add_executable(CameraWall
+    src/main.cpp
+    src/util.h
+    src/onvifclient.h
+    src/onvifclient.cpp
+    src/videotile.h
+    src/videotile.cpp
+    src/editcameradialog.h
+    src/editcameradialog.cpp
+    src/camerawall.h
+    src/camerawall.cpp
+)
 
-# MSVC (Visual Studio) build esetén:
-# set(CMAKE_PREFIX_PATH "C:/Qt/6.9.3/msvc2022_64")
-
-find_package(Qt6 REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets)
-qt_standard_project_setup()
-
-add_executable(CameraWall main.cpp)
-target_link_libraries(CameraWall PRIVATE Qt6::Widgets Qt6::Multimedia Qt6::MultimediaWidgets)
+target_link_libraries(CameraWall PRIVATE
+    Qt6::Widgets
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
+    Qt6::Network
+)
