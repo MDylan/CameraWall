@@ -1,6 +1,6 @@
 // Single-file demo using Qt 6 (Widgets + Multimedia + MultimediaWidgets)
 // Features:
-// - Fullscreen by default, menu to add/remove cameras
+// - Fullscreen by default, menu to add/remove/edit cameras
 // - Stores camera list in an INI file next to the executable (cameras.ini)
 // - RTSP support via Qt Multimedia backend (FFmpeg/GStreamer depending on platform)
 // - Auth supported via username/password fields (embedded into the RTSP URL safely)
@@ -9,7 +9,7 @@
 // - Optional 15 FPS limit (default ON) with QVideoSink throttling; remembered in INI
 // - Fill without cropping (aspect ignored) to always fill tiles
 // - PER-TILE fullscreen: double-click or ⛶ button toggles focused fullscreen view; double-click again to return
-// - Basic error overlays per tile
+// - Connection status dot (green/red) next to camera name (green = stream frames / playing, red = error/unknown)
 //
 // Build (CMake example):
 //   cmake_minimum_required(VERSION 3.21)
@@ -80,10 +80,14 @@ public:
         m_player->setAudioOutput(m_audio);
         m_audio->setMuted(true); // alapból némítva
 
-        // Overlay címke
+        // Overlay: státusz pötty + név
+        m_dot = new QLabel(this);
+        m_dot->setFixedSize(10, 10);
+        m_dot->setStyleSheet("background:#ff6b6b; border-radius:5px; border:1px solid rgba(255,255,255,0.25);");
+        m_dot->raise();
+
         m_label = new QLabel(this);
-        m_label->setStyleSheet("background:rgba(0,0,0,0.5); color:#e8eef7; padding:4px 8px; border-radius:8px;");
-        m_label->move(10, 10);
+        m_label->setStyleSheet("background:rgba(0,0,0,0.5); color:#e8eef7; padding:2px 8px; border-radius:8px;");
         m_label->raise();
 
         // Teljes képernyő gomb (jobb alsó sarok)
@@ -104,22 +108,27 @@ public:
         m_err->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
         m_err->setMinimumHeight(24);
         m_err->setTextInteractionFlags(Qt::TextSelectableByMouse);
-
         m_err->adjustSize();
         m_err->move(10, height() - m_err->height() - 10);
 
+        // Kapcsolódási státusz jelek
         connect(m_player, &QMediaPlayer::errorOccurred, this, [this](QMediaPlayer::Error, const QString &errorString)
                 {
             m_err->setText("Hiba: " + errorString);
-            m_err->setVisible(true); });
+            m_err->setVisible(true);
+            setConnected(false); });
         connect(m_player, &QMediaPlayer::playbackStateChanged, this, [this](QMediaPlayer::PlaybackState st)
                 {
-            if (st == QMediaPlayer::PlayingState) m_err->setVisible(false); });
+            if (st == QMediaPlayer::PlayingState) {
+                m_err->setVisible(false);
+                setConnected(true); // játszik → tekintsük zöldnek
+            } });
     }
 
     void setCamera(const Camera &cam)
     {
         m_cam = cam;
+        setConnected(false); // új URL → ismeretlen, amíg nem jön frame
         m_label->setText(cam.name);
         m_label->adjustSize();
 
@@ -147,7 +156,10 @@ protected:
     void resizeEvent(QResizeEvent *e) override
     {
         QWidget::resizeEvent(e);
-        m_label->move(10, 10);
+        // helyezés: pötty + címke egymás mellett bal felső sarokban
+        const int pad = 10;
+        m_dot->move(pad, pad);
+        m_label->move(pad + m_dot->width() + 6, pad - 4);
         m_err->move(10, height() - m_err->height() - 10);
         if (btnFS)
             btnFS->move(width() - btnFS->width() - 10, height() - btnFS->height() - 10);
@@ -172,7 +184,7 @@ private slots:
         if (img.isNull())
             return;
         m_lastImage = img;
-        // Ha nincs elindítva a timer (biztonsági), most azonnal is rajzolhatunk
+        setConnected(true); // kaptunk képkockát → zöld
         if (!m_fpsTimer.isActive())
             flushFrame();
     }
@@ -195,6 +207,13 @@ private:
         m_canvas->setPixmap(std::move(pm));
     }
 
+    void setConnected(bool ok)
+    {
+        m_connected = ok;
+        const char *col = ok ? "#43d18b" : "#ff6b6b";
+        m_dot->setStyleSheet(QString("background:%1; border-radius:5px; border:1px solid rgba(255,255,255,0.25);").arg(col));
+    }
+
     Camera m_cam;
     QMediaPlayer *m_player{};
     QAudioOutput *m_audio{};
@@ -207,18 +226,21 @@ private:
     QTimer m_fpsTimer;       // ha m_limitFps
     QImage m_lastImage;      // ha m_limitFps
 
-    QLabel *m_label{};
+    QLabel *m_dot{};   // zöld/piros státusz
+    QLabel *m_label{}; // kamera név
     QLabel *m_err{};
     QPushButton *btnFS{};
+    bool m_connected{false};
 };
 
 class AddCameraDialog : public QDialog
 {
     Q_OBJECT
 public:
-    AddCameraDialog(QWidget *parent = nullptr) : QDialog(parent)
+    // existing==nullptr → új kamera; különben szerkesztés
+    AddCameraDialog(const Camera *existing = nullptr, QWidget *parent = nullptr) : QDialog(parent)
     {
-        setWindowTitle("Kamera hozzáadása");
+        setWindowTitle(existing ? "Kamera szerkesztése" : "Kamera hozzáadása");
         auto *form = new QFormLayout(this);
         name = new QLineEdit;
         form->addRow("Név:", name);
@@ -234,7 +256,21 @@ public:
         form->addRow(btns);
         connect(btns, &QDialogButtonBox::accepted, this, &QDialog::accept);
         connect(btns, &QDialogButtonBox::rejected, this, &QDialog::reject);
-        resize(420, 0);
+        resize(480, 0);
+
+        if (existing)
+            setFromCamera(*existing);
+    }
+
+    void setFromCamera(const Camera &c)
+    {
+        name->setText(c.name);
+        host->setText(QString::fromUtf8(c.url.toEncoded()));
+        // user/pass mezőket csak akkor töltjük, ha userinfo-ban volt (ritkán használjuk)
+        if (!c.url.userName().isEmpty())
+            user->setText(c.url.userName());
+        if (!c.url.password().isEmpty())
+            pass->setText(c.url.password());
     }
 
     Camera camera() const
@@ -278,6 +314,7 @@ public:
         // Menus
         auto *mCams = menuBar()->addMenu("&Kamerák");
         QAction *actAdd = mCams->addAction("Hozzáadás…", this, &CameraWall::onAdd);
+        actEdit = mCams->addAction("Szerkesztés…", this, &CameraWall::onEditSelected);
         QAction *actRemove = mCams->addAction("Kijelölt törlése", this, &CameraWall::onRemoveSelected);
         QAction *actClear = mCams->addAction("Összes törlése", this, &CameraWall::onClearAll);
         mCams->addSeparator();
@@ -330,6 +367,7 @@ protected:
     {
         QMenu menu(this);
         menu.addAction("Hozzáadás…", this, &CameraWall::onAdd);
+        menu.addAction("Szerkesztés…", this, &CameraWall::onEditSelected);
         menu.addAction("Kijelölt törlése", this, &CameraWall::onRemoveSelected);
         menu.addSeparator();
         menu.addAction("Teljes képernyő váltása (F11)", this, &CameraWall::toggleFullscreen);
@@ -344,10 +382,27 @@ protected:
 private slots:
     void onAdd()
     {
-        AddCameraDialog dlg(this);
+        AddCameraDialog dlg(nullptr, this);
         if (dlg.exec() == QDialog::Accepted)
         {
             cams.push_back(dlg.camera());
+            saveCamerasToIni();
+            rebuildTiles();
+        }
+    }
+
+    void onEditSelected()
+    {
+        if (selectedIndex < 0 || selectedIndex >= cams.size())
+        {
+            QMessageBox::information(this, "Szerkesztés", "Jelölj ki egy kamerát (kattints a csempére).");
+            return;
+        }
+        Camera current = cams[selectedIndex];
+        AddCameraDialog dlg(&current, this);
+        if (dlg.exec() == QDialog::Accepted)
+        {
+            cams[selectedIndex] = dlg.camera();
             saveCamerasToIni();
             rebuildTiles();
         }
@@ -633,6 +688,7 @@ private:
     bool m_limitFps15 = true; // remember in INI
     QAction *actFps{};
     QAction *actFull{};
+    QAction *actEdit{};
     QActionGroup *gridGroup{};
     QAction *actGrid2{};
     QAction *actGrid3{};
