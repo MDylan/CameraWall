@@ -317,29 +317,53 @@ void CameraWall::onTileFullscreenRequested(VideoTile *src)
 
 void CameraWall::exitFocus()
 {
-    if (m_highFirstFrameConn)
-    {
-        QObject::disconnect(m_highFirstFrameConn);
-        m_highFirstFrameConn = {};
-    }
-    m_focusCamIdx = -1;
-
     if (!focusDlg)
         return;
 
+    const int idx = m_focusCamIdx; // mentsük el, mielőtt kinulláznánk
+
     if (focusTile)
     {
-        // a háttér stream-eket NEM állítjuk le – csak a csempét zárjuk
+        detachHigh(idx);
+        focusTile->stop();
         focusTile->deleteLater();
         focusTile = nullptr;
     }
     focusDlg->close();
     focusDlg->deleteLater();
     focusDlg = nullptr;
+    m_focusCamIdx = -1;
+
+    // --- ÚJ: low stream visszacsatolása és "kick" ---
+    if (idx >= 0)
+    {
+        if (auto *t = tileForIndex(idx))
+        {
+            attachLowToTile(idx, t);
+
+            // Ha valamiért nem Playing, indítsuk újra
+            if (m_streams[idx].low && m_streams[idx].low->playbackState() != QMediaPlayer::PlayingState)
+                m_streams[idx].low->play();
+
+            // Lökés: queued hívással állítsuk vissza a pozíciót
+            if (m_streams[idx].low)
+            {
+                QMetaObject::invokeMethod(m_streams[idx].low, [p = m_streams[idx].low]
+                                          {
+                                              p->setPosition(p->position()); // triggerelje a képkocka-küldést
+                                          },
+                                          Qt::QueuedConnection);
+            }
+
+            // A csempe fesse újra az utolsó ismert képet, amíg meg nem jön az új frame
+            t->kickOnce();
+        }
+    }
 }
 
 void CameraWall::enterFocus(int camIdx)
 {
+    m_focusCamIdx = camIdx;
     if (camIdx < 0 || camIdx >= cams.size())
         return;
 
@@ -495,6 +519,13 @@ void CameraWall::attachLowToTile(int camIdx, VideoTile *tile)
     if (!E.low)
         return;
     tile->applyToPlayer(E.low);
+    if (m_streams[camIdx].low)
+    {
+        // queued „bökés”
+        QMetaObject::invokeMethod(m_streams[camIdx].low, [p = m_streams[camIdx].low]
+                                  { p->setPosition(p->position()); }, Qt::QueuedConnection);
+    }
+    tile->kickOnce();
 }
 
 void CameraWall::detachLow(int camIdx)
@@ -648,6 +679,14 @@ void CameraWall::rebuildTiles()
                                  .arg(gridN)
                                  .arg(m_limitFps15 ? "15" : "max")
                                  .arg(m_keepBackgroundStreams ? "be" : "ki"));
+}
+
+VideoTile *CameraWall::tileForIndex(int camIdx) const
+{
+    for (auto *t : tiles)
+        if (tileIndexMap.value(t, -1) == camIdx)
+            return t;
+    return nullptr;
 }
 
 // ======= INI =======

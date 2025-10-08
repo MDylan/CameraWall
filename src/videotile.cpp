@@ -218,3 +218,37 @@ void VideoTile::switchToWidgetFallback()
     m_player->setVideoSink(nullptr);
     m_player->setVideoOutput(m_video);
 }
+
+void VideoTile::rearmAfterFocus()
+{
+    // Ha widget-es megjelenítés megy (nem limitFps), semmi teendő:
+    if (!m_limitFps)
+    {
+        // biztos, ami biztos: ha nem Playing, indítsuk újra
+        if (m_player && m_player->playbackState() != QMediaPlayer::PlayingState)
+            m_player->play();
+        return;
+    }
+
+    // FPS-limitált (QVideoSink-es) út: kössük újra a sinket és kérjünk azonnal egy frissítést
+    if (!m_player || !m_sink)
+        return;
+
+    auto st = m_player->playbackState();
+    m_player->setVideoSink(nullptr);
+    m_player->setVideoSink(m_sink);
+
+    // ha Playing volt, tartsuk is úgy
+    if (st == QMediaPlayer::PlayingState)
+        m_player->play();
+
+    // ha van utolsó képünk, fessünk rá azonnal, amíg jön az első új frame
+    if (!m_lastImage.isNull())
+        flushFrame();
+}
+
+void VideoTile::kickOnce()
+{
+    if (m_limitFps && m_canvas && !m_lastImage.isNull())
+        paintImage(m_lastImage);
+}

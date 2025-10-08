@@ -24,6 +24,9 @@ public:
 
     // ÚJ: egy külső QMediaPlayer képét erre a csempére irányítja
     void applyToPlayer(QMediaPlayer *player);
+    void rearmAfterFocus();
+    QVideoSink *videoSink() const { return m_sink; }
+    void kickOnce();
 
 signals:
     void fullscreenRequested();

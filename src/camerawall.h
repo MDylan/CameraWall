@@ -100,4 +100,6 @@ private:
 
     bool m_autoRotate = true;
     bool m_keepBackgroundStreams = true;
+
+    VideoTile *tileForIndex(int camIdx) const;
 };
