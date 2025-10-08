@@ -1,15 +1,17 @@
 #include "camerawall.h"
-#include <QContextMenuEvent>
-#include <QKeyEvent>
-#include <QSettings>
-#include <QDialog>
-#include <QVBoxLayout>
 
-using namespace Util;
+#include <QtCore>
+#include <QtGui>
+#include <QtWidgets>
+
+#include "editcameradialog.h"
+#include "onvifclient.h"
+#include "util.h" // iniPath(), urlFromEncoded(), stb.
 
 CameraWall::CameraWall()
 {
     setWindowTitle("IP Kamera fal (RTSP/ONVIF)");
+
     QWidget *central = new QWidget;
     setCentralWidget(central);
     grid = new QGridLayout(central);
@@ -29,14 +31,20 @@ CameraWall::CameraWall()
     mCams->addSeparator();
     mCams->addAction("Újratöltés", this, [this]
                      { reloadAll(); });
+    // ÚJ: sorrendezés
+    mCams->addSeparator();
+    mCams->addAction("Kamerák sorrendje…", this, [this]
+                     { showReorderDialog(); });
 
     auto *mView = menuBar()->addMenu("&Nézet");
     actFull = mView->addAction("Teljes képernyő (ablak)", this, [this]
                                { toggleFullscreen(); });
     actFull->setShortcut(Qt::Key_F11);
+
     actFps = mView->addAction("FPS limit 15", this, [this]
                               { toggleFpsLimit(); });
     actFps->setCheckable(true);
+
     QMenu *mGrid = mView->addMenu("Rács");
     gridGroup = new QActionGroup(mGrid);
     gridGroup->setExclusive(true);
@@ -51,23 +59,35 @@ CameraWall::CameraWall()
     connect(actGrid3, &QAction::triggered, this, [this]
             { setGridN(3); });
 
+    // ÚJ: automatikus oldalváltás kapcsoló
+    actAutoRotate = mView->addAction("Automatikus oldalváltás (10s)");
+    actAutoRotate->setCheckable(true);
+    connect(actAutoRotate, &QAction::toggled, this, [this](bool on)
+            {
+                m_autoRotate = on;
+                saveViewToIni();
+                int pages = qMax(1, (cams.size() + perPage() - 1) / perPage());
+                updateRotationTimer(pages);
+                rebuildTiles(); // státusz frissítéshez is
+            });
+
     statusBar()->showMessage("F11 – teljes képernyő • Duplakatt/⛶: fókusz • ONVIF: rács=low, fókusz=high");
 
     connect(&rotateTimer, &QTimer::timeout, this, [this]
             { nextPage(); });
     rotateTimer.setInterval(10000);
 
-    // Betöltés
+    // Betöltés és induló állapotok
     loadFromIni();
     if (gridN != 2 && gridN != 3)
         gridN = 2;
     actGrid2->setChecked(gridN == 2);
     actGrid3->setChecked(gridN == 3);
     actFps->setChecked(m_limitFps15);
+    actAutoRotate->setChecked(m_autoRotate); // ÚJ
 
     rebuildTiles();
 
-    // induláskor teljes képernyő
     QTimer::singleShot(0, [this]
                        { this->showFullScreen(); });
 }
@@ -88,6 +108,8 @@ void CameraWall::contextMenuEvent(QContextMenuEvent *e)
     QMenu *sub = menu.addMenu("Rács");
     sub->addAction(actGrid2);
     sub->addAction(actGrid3);
+    // ÚJ: automata lapozás menüből is elérhető
+    menu.addAction(actAutoRotate);
     menu.exec(e->globalPos());
 }
 
@@ -117,6 +139,8 @@ bool CameraWall::eventFilter(QObject *obj, QEvent *event)
     return QMainWindow::eventFilter(obj, event);
 }
 
+int CameraWall::perPage() const { return gridN * gridN; }
+
 void CameraWall::setGridN(int n)
 {
     if (n != 2 && n != 3)
@@ -136,6 +160,7 @@ void CameraWall::onAdd()
         rebuildTiles();
     }
 }
+
 void CameraWall::onEditSelected()
 {
     if (selectedIndex < 0 || selectedIndex >= cams.size())
@@ -152,6 +177,7 @@ void CameraWall::onEditSelected()
         rebuildTiles();
     }
 }
+
 void CameraWall::onRemoveSelected()
 {
     if (selectedIndex < 0 || selectedIndex >= cams.size())
@@ -164,6 +190,7 @@ void CameraWall::onRemoveSelected()
         rebuildTiles();
     }
 }
+
 void CameraWall::onClearAll()
 {
     if (QMessageBox::question(this, "Összes törlése", "Biztosan törlöd az összes kamerát?") == QMessageBox::Yes)
@@ -174,11 +201,13 @@ void CameraWall::onClearAll()
         rebuildTiles();
     }
 }
+
 void CameraWall::tileClicked(int flatIndex)
 {
     selectedIndex = flatIndex;
     statusBar()->showMessage(QString("Kijelölt: %1").arg(cams.value(flatIndex).name));
 }
+
 void CameraWall::toggleFullscreen()
 {
     if (isFullScreen())
@@ -186,6 +215,7 @@ void CameraWall::toggleFullscreen()
     else
         showFullScreen();
 }
+
 void CameraWall::toggleFpsLimit()
 {
     m_limitFps15 = !m_limitFps15;
@@ -193,6 +223,7 @@ void CameraWall::toggleFpsLimit()
     saveViewToIni();
     rebuildTiles();
 }
+
 void CameraWall::nextPage()
 {
     int pages = qMax(1, (cams.size() + perPage() - 1) / perPage());
@@ -201,6 +232,7 @@ void CameraWall::nextPage()
     currentPage = (currentPage + 1) % pages;
     rebuildTiles();
 }
+
 void CameraWall::reloadAll()
 {
     for (auto *t : std::as_const(tiles))
@@ -219,6 +251,7 @@ void CameraWall::onTileFullscreenRequested(VideoTile *src)
     int idx = tileIndexMap.value(src, -1);
     enterFocus(idx);
 }
+
 void CameraWall::exitFocus()
 {
     if (!focusDlg)
@@ -244,7 +277,7 @@ QUrl CameraWall::playbackUrlFor(int camIdx, bool high, QString *errOut)
 
     QString cached = high ? c.rtspUriHighCached : c.rtspUriLowCached;
     if (!cached.isEmpty())
-        return urlFromEncoded(cached);
+        return Util::urlFromEncoded(cached);
 
     OnvifClient cli;
     QString err;
@@ -281,7 +314,7 @@ QUrl CameraWall::playbackUrlFor(int camIdx, bool high, QString *errOut)
     else
         cams[camIdx].rtspUriLowCached = uri;
     saveCamerasToIni();
-    return urlFromEncoded(uri);
+    return Util::urlFromEncoded(uri);
 }
 
 void CameraWall::enterFocus(int camIdx)
@@ -303,15 +336,14 @@ void CameraWall::enterFocus(int camIdx)
     lay->addWidget(focusTile);
     focusTile->setName(cams[camIdx].name);
     focusTile->playUrl(url);
-    connect(focusTile, &VideoTile::fullscreenRequested, this, [this]
-            { exitFocus(); });
+    connect(focusTile, &VideoTile::fullscreenRequested, this, &CameraWall::exitFocus);
     focusDlg->installEventFilter(this);
     focusDlg->showFullScreen();
 }
 
 void CameraWall::rebuildTiles()
 {
-    // Layout kiürítése
+    // Layout ürítése
     QLayoutItem *child;
     while ((child = grid->takeAt(0)) != nullptr)
     {
@@ -322,7 +354,6 @@ void CameraWall::rebuildTiles()
     tiles.clear();
     tileIndexMap.clear();
 
-    // Stretch-ek beállítása
     for (int r = 0; r < 9; ++r)
         grid->setRowStretch(r, 0);
     for (int c = 0; c < 9; ++c)
@@ -344,12 +375,10 @@ void CameraWall::rebuildTiles()
     }
 
     const int pages = qMax(1, (cams.size() + perPage() - 1) / perPage());
+    updateRotationTimer(pages);
+
     if (currentPage >= pages)
         currentPage = 0;
-    if (cams.size() > perPage())
-        rotateTimer.start();
-    else
-        rotateTimer.stop();
 
     const int start = currentPage * perPage();
     const int end = qMin(start + perPage(), cams.size());
@@ -366,28 +395,85 @@ void CameraWall::rebuildTiles()
         QString err;
         QUrl play = playbackUrlFor(i, /*high*/ false, &err);
         if (play.isEmpty())
+        {
             tile->setToolTip(err);
+        }
         else
+        {
             tile->playUrl(play);
-
+        }
         tile->installEventFilter(this);
-        connect(tile, &VideoTile::fullscreenRequested, this, [this, tile]
+        connect(tile, &VideoTile::fullscreenRequested, this, [this, tile]()
                 { onTileFullscreenRequested(tile); });
         tileIndexMap[tile] = i;
         shown++;
     }
+
+    const QString pagesStr =
+        cams.size() > perPage()
+            ? (m_autoRotate ? "10s váltás" : "váltás: ki")
+            : "minden látható";
+
     statusBar()->showMessage(QString("%1 kamera • %2/%3 oldal • %4 • Rács: %5×%5 • FPS: %6")
                                  .arg(cams.size())
                                  .arg(currentPage + 1)
                                  .arg(pages)
-                                 .arg(cams.size() > perPage() ? "10s váltás" : "minden látható")
+                                 .arg(pagesStr)
                                  .arg(gridN)
                                  .arg(m_limitFps15 ? "15" : "max"));
 }
 
+void CameraWall::showReorderDialog()
+{
+    QDialog dlg(this);
+    dlg.setWindowTitle("Kamerák sorrendje");
+    auto *lay = new QVBoxLayout(&dlg);
+
+    auto *list = new QListWidget(&dlg);
+    list->setSelectionMode(QAbstractItemView::SingleSelection);
+    list->setDragDropMode(QAbstractItemView::InternalMove);
+    list->setDefaultDropAction(Qt::MoveAction);
+    list->setAlternatingRowColors(true);
+    for (int i = 0; i < cams.size(); ++i)
+    {
+        auto *it = new QListWidgetItem(cams[i].name, list);
+        it->setData(Qt::UserRole, i);
+    }
+    lay->addWidget(list);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    lay->addWidget(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    QVector<Camera> reordered;
+    reordered.reserve(cams.size());
+    for (int row = 0; row < list->count(); ++row)
+    {
+        int oldIdx = list->item(row)->data(Qt::UserRole).toInt();
+        reordered.push_back(cams[oldIdx]);
+    }
+    cams = std::move(reordered);
+    selectedIndex = -1;
+    saveCamerasToIni();
+    rebuildTiles();
+}
+
+void CameraWall::updateRotationTimer(int pages)
+{
+    if (pages > 1 && m_autoRotate)
+        rotateTimer.start();
+    else
+        rotateTimer.stop();
+}
+
 void CameraWall::loadFromIni()
 {
-    QSettings s(iniPath(), QSettings::IniFormat);
+    QSettings s(Util::iniPath(), QSettings::IniFormat);
+    // Cameras
     cams.clear();
     s.beginGroup("Cameras");
     int count = s.value("count", 0).toInt();
@@ -399,7 +485,7 @@ void CameraWall::loadFromIni()
         c.mode = (s.value("mode", "rtsp").toString() == "onvif") ? Camera::ONVIF : Camera::RTSP;
         if (c.mode == Camera::RTSP)
         {
-            c.rtspManual = urlFromEncoded(s.value("rtsp").toString());
+            c.rtspManual = Util::urlFromEncoded(s.value("rtsp").toString());
         }
         else
         {
@@ -418,15 +504,18 @@ void CameraWall::loadFromIni()
         s.endGroup();
     }
     s.endGroup();
+
+    // View
     s.beginGroup("View");
     gridN = s.value("gridN", 2).toInt();
     m_limitFps15 = s.value("fpsLimit15", true).toBool();
+    m_autoRotate = s.value("autoRotate", true).toBool(); // ÚJ
     s.endGroup();
 }
 
 void CameraWall::saveCamerasToIni()
 {
-    QSettings s(iniPath(), QSettings::IniFormat);
+    QSettings s(Util::iniPath(), QSettings::IniFormat);
     s.beginGroup("Cameras");
     s.remove("");
     s.setValue("count", cams.size());
@@ -459,10 +548,11 @@ void CameraWall::saveCamerasToIni()
 
 void CameraWall::saveViewToIni()
 {
-    QSettings s(iniPath(), QSettings::IniFormat);
+    QSettings s(Util::iniPath(), QSettings::IniFormat);
     s.beginGroup("View");
     s.setValue("gridN", gridN);
     s.setValue("fpsLimit15", m_limitFps15);
+    s.setValue("autoRotate", m_autoRotate); 
     s.endGroup();
     s.sync();
 }

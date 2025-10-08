@@ -11,6 +11,7 @@
         "*.erd": "json",
         "*.vuerd": "json",
         "*.moc": "cpp",
-        "span": "cpp"
+        "span": "cpp",
+        "format": "cpp"
     }
 }

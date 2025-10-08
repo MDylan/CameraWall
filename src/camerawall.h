@@ -1,4 +1,5 @@
 #pragma once
+
 #include <QMainWindow>
 #include <QGridLayout>
 #include <QTimer>
@@ -12,20 +13,23 @@
 #include "onvifclient.h"
 #include "util.h"
 
+class QGridLayout;
+class QDialog;
+class QActionGroup;
+
 class CameraWall : public QMainWindow
 {
     Q_OBJECT
 public:
-    explicit CameraWall();
+    CameraWall();
 
 protected:
     void contextMenuEvent(QContextMenuEvent *e) override;
     bool eventFilter(QObject *obj, QEvent *event) override;
 
 private:
-    int perPage() const { return gridN * gridN; }
+    int perPage() const;
     void setGridN(int n);
-
     void onAdd();
     void onEditSelected();
     void onRemoveSelected();
@@ -39,10 +43,13 @@ private:
     void onTileFullscreenRequested(VideoTile *src);
     void exitFocus();
     void enterFocus(int camIdx);
+    void rebuildTiles();
+
+    // ÚJ: sorrendező párbeszéd és az automata lapozás kezelése
+    void showReorderDialog();
+    void updateRotationTimer(int pages);
 
     QUrl playbackUrlFor(int camIdx, bool high, QString *errOut = nullptr);
-
-    void rebuildTiles();
 
     void loadFromIni();
     void saveCamerasToIni();
@@ -58,12 +65,20 @@ private:
     QTimer rotateTimer;
     int gridN = 2;
     bool m_limitFps15 = true;
+
+    // Actions
     QAction *actFps{};
     QAction *actFull{};
     QAction *actEdit{};
     QActionGroup *gridGroup{};
     QAction *actGrid2{};
     QAction *actGrid3{};
+    QAction *actAutoRotate{}; // ÚJ
+
+    // Fókusz nézet
     QDialog *focusDlg{};
     VideoTile *focusTile{};
+
+    // Nézet beállítások
+    bool m_autoRotate = true; // ÚJ
 };
