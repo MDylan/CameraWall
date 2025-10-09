@@ -1,90 +1,84 @@
 #pragma once
-#include <QtCore>
-#include <QDir>
+
+#include <QString>
 #include <QUrl>
-#include <QCryptographicHash>
+#include <QStandardPaths>
+#include <QDir>
+#include <QDateTime>
+#include <QByteArray>
 
 namespace Util
 {
 
-    // cameras.ini elérési útja az exe mellé
-    static inline QString iniPath()
+    // INI elérési út
+    inline QString iniPath()
     {
-        const QString dir = QCoreApplication::applicationDirPath();
-        return QDir(dir).filePath("cameras.ini");
+        const QString confDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+        QDir().mkpath(confDir);
+        return confDir + "/camerawall.ini";
     }
 
-    // Biztonságos URL-dekódolás
-    static inline QUrl urlFromEncoded(const QString &raw)
+    // Nyers (akár már kódolt) sztringből QUrl
+    inline QUrl urlFromEncoded(const QString &raw)
     {
-        return QUrl::fromEncoded(raw.toUtf8(), QUrl::StrictMode);
+        return QUrl::fromEncoded(raw.trimmed().toUtf8());
     }
 
-    // Hasznos segédek (ha az ONVIF kliensed használja)
-    static inline QString dateTimeZuluNow()
+    // Van-e explicit user/pass az URL-ben?
+    inline bool hasUserInfo(const QUrl &u)
     {
-        return QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs);
-    }
-    static inline QString base64(const QByteArray &b)
-    {
-        return QString::fromLatin1(b.toBase64());
-    }
-    static inline QString wssePasswordDigest(const QByteArray &nonce,
-                                             const QString &created,
-                                             const QString &password)
-    {
-        QByteArray data = nonce + created.toUtf8() + password.toUtf8();
-        QByteArray sha1 = QCryptographicHash::hash(data, QCryptographicHash::Sha1);
-        return base64(sha1);
+        return !u.userName().isEmpty() || !u.password().isEmpty();
     }
 
-    // ONVIF által adott rtsp:// URL-ekbe beégeti a user/pass-t, ha hiányzik
-    static inline QUrl withCredentials(QUrl u, const QString &user, const QString &pass)
+    /*
+     * RTSP hitelesítés biztosítása:
+     * - Ha az URL-ben NINCS user/pass, és kaptunk usert (nem üres),
+     *   akkor beírjuk user:pass@ formában az authority-be.
+     * - Ha az URL-ben MÁR VAN userinfo, NEM írjuk felül (csak ha overwrite=true).
+     */
+    inline QUrl ensureRtspCredentials(const QUrl &in,
+                                      const QString &user,
+                                      const QString &pass,
+                                      bool overwrite = false)
     {
-        if (!user.isEmpty() && u.userName().isEmpty())
-            u.setUserName(user);
-        if (!pass.isEmpty() && u.password().isEmpty())
+        if (user.isEmpty())
+            return in;
+
+        QUrl u = in;
+        const QString scheme = u.scheme().toLower();
+        if (scheme != "rtsp" && scheme != "rtsps")
+            return in;
+
+        if (!overwrite && hasUserInfo(u))
+            return u;
+
+        u.setUserName(user);
+        if (!pass.isEmpty())
             u.setPassword(pass);
         return u;
     }
 
-    // RTSP URL-be injektálja a user:pass@ részt, ha hiányzik.
-    // Megőrzi a path / query / fragment részeket, IPv6 hostot is kezeli.
-    static inline QUrl applyRtspCredentials(const QUrl &in,
-                                            const QString &user,
-                                            const QString &pass)
+    // Backward-compat: nem ír felül meglévő userinfo-t
+    inline QUrl withCredentials(const QUrl &in, const QString &user, const QString &pass)
     {
-        if (in.scheme().compare("rtsp", Qt::CaseInsensitive) != 0)
-            return in;
-        if (user.isEmpty() && pass.isEmpty())
-            return in;
-
-        // Ha már van user/pass az URL-ben, hagyjuk úgy.
-        if (!in.userName().isEmpty() || !in.password().isEmpty())
-            return in;
-
-        // Percent-encode a felhasználó/jelszóban (:@/ stb. ne zavarjon bele)
-        const QString encUser = QString::fromLatin1(QUrl::toPercentEncoding(user));
-        const QString encPass = QString::fromLatin1(QUrl::toPercentEncoding(pass));
-
-        // Host (IPv6-ot [ ] közé tesszük, ha nincs)
-        QString host = in.host();
-        if (host.contains(':') && !host.startsWith('['))
-            host = "[" + host + "]";
-
-        const QString port = (in.port() > 0) ? (":" + QString::number(in.port())) : QString();
-        QString path = in.path(QUrl::FullyEncoded);
-        if (path.isEmpty()) path = "/";
-
-        const QString query = in.query(QUrl::FullyEncoded);
-        const QString frag  = in.fragment(QUrl::FullyEncoded);
-
-        QString url = QStringLiteral("rtsp://%1:%2@%3%4%5")
-                        .arg(encUser, encPass, host, port, path);
-        if (!query.isEmpty()) url += "?" + query;
-        if (!frag.isEmpty())  url += "#" + frag;
-
-        return QUrl::fromEncoded(url.toUtf8(), QUrl::StrictMode);
+        return ensureRtspCredentials(in, user, pass, /*overwrite=*/false);
     }
 
-}
+    /* ---- ONVIF/WSSE segédek ---- */
+
+    // Base64
+    inline QString base64(const QByteArray &data)
+    {
+        return QString::fromLatin1(data.toBase64());
+    }
+
+    // ISO 8601 UTC „Z” végződéssel
+    inline QString dateTimeZuluNow()
+    {
+        QString iso = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+        if (!iso.endsWith('Z'))
+            iso += 'Z';
+        return iso;
+    }
+
+} // namespace Util

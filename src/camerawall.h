@@ -2,18 +2,20 @@
 
 #include <QMainWindow>
 #include <QGridLayout>
+#include <QStackedLayout>
 #include <QActionGroup>
-#include <QDialog>
 #include <QTimer>
 #include <QVector>
 #include <QHash>
+#include <QSettings>
 #include <QtMultimedia/QMediaPlayer>
 #include <QtMultimedia/QVideoSink>
 
-#include "util.h"
 #include "videotile.h"
-#include "editcameradialog.h" // <- Itt van a Camera definíciója
-#include "onvifclient.h"
+#include "editcameradialog.h" // Camera struct itt van
+#include "reorderdialog.h"
+#include "language.h"
+#include "util.h"
 
 class CameraWall : public QMainWindow
 {
@@ -23,83 +25,73 @@ public:
 
 protected:
     void contextMenuEvent(QContextMenuEvent *e) override;
-    bool eventFilter(QObject *obj, QEvent *event) override;
 
-private:
-    int perPage() const { return gridN * gridN; }
-    void setGridN(int n);
-
+private slots:
+    // menü / működés
     void onAdd();
     void onEditSelected();
     void onRemoveSelected();
     void onClearAll();
-    void tileClicked(int flatIndex);
+    void onReorder();
     void toggleFullscreen();
     void toggleFpsLimit();
     void toggleAutoRotate();
     void toggleKeepAlive();
+    void onTileFullscreenRequested(); // tagfüggvény slot – UniqueConnection elkerüléséhez
     void nextPage();
     void reloadAll();
 
-    void onTileFullscreenRequested(VideoTile *src);
-    void exitFocus();
-    void enterFocus(int camIdx);
-
-    QUrl playbackUrlFor(int camIdx, bool high, QString *errOut = nullptr);
-
+private:
+    // layout / nézet
+    int perPage() const { return gridN * gridN; }
+    void applyGridStretch();
+    void setGridN(int n);
     void rebuildTiles();
+    void enterFocus(int camIdx);
+    void exitFocus();
+
+    // adatok
+    QUrl playbackUrlFor(int camIdx, bool high, QString *errOut = nullptr);
     void loadFromIni();
     void saveCamerasToIni();
     void saveViewToIni();
-    QMetaObject::Connection m_highFirstFrameConn{};
-    int m_focusCamIdx{-1};
-    void prepareModelMutation(int removingIdx = -1); // stop lejátszók, fókusz kilépés
 
-    // ---- Háttér stream pool ----
-    struct StreamEntry
-    {
-        QMediaPlayer *low = nullptr;
-        QMediaPlayer *high = nullptr;
-        QVideoSink *dummyLow = nullptr;
-        QVideoSink *dummyHigh = nullptr;
-    };
-    QVector<StreamEntry> m_streams;
-
-    void ensureStreamsSize();
-    bool ensureLowConnected(int camIdx, QString *err = nullptr);
-    bool ensureHighConnected(int camIdx, QString *err = nullptr);
-    void attachLowToTile(int camIdx, VideoTile *tile);
-    void detachLow(int camIdx);
-    void attachHighToTile(int camIdx, VideoTile *tile);
-    void detachHigh(int camIdx);
-    void stopAndDeleteAllStreams();
+    // nyelvi címkék újrarakása
+    void retitle();
 
 private:
+    // --- központi stack: 0 = rács, 1 = fókusz ---
+    QWidget *central{};
+    QStackedLayout *stack{};
+    // rács oldal
+    QWidget *pageGrid{};
     QGridLayout *grid{};
-    QVector<Camera> cams; // <- a Camera típust a editcameradialog.h adja
+    // fókusz oldal
+    QWidget *pageFocus{};
+    QVBoxLayout *focusLayout{};
+    QWidget *focusPlaceholder{}; // a rácsban hagyott hely
+
+    // kamera/nézet állapot
+    QVector<Camera> cams;
     QVector<VideoTile *> tiles;
     QHash<VideoTile *, int> tileIndexMap;
-    int selectedIndex = -1;
-    int currentPage = 0;
+    int selectedIndex{-1};
+    int currentPage{0};
     QTimer rotateTimer;
-    int gridN = 2;
-    bool m_limitFps15 = true;
+    int gridN{2};
+    bool m_limitFps15{true};
+    bool m_autoRotate{true};
+    bool m_keepBackgroundStreams{true};
+
+    // fókusz állapot
+    int m_focusCamIdx{-1};
+    VideoTile *focusTile{nullptr};
+    int focusRow{-1}, focusCol{-1};
 
     // menük
-    QAction *actFps{};
-    QAction *actFull{};
-    QAction *actEdit{};
+    QAction *actFps{}, *actFull{}, *actEdit{}, *actKeepAlive{}, *actAutoRotate{}, *actGrid2{}, *actGrid3{}, *actReorder{};
     QActionGroup *gridGroup{};
-    QAction *actGrid2{};
-    QAction *actGrid3{};
-    QAction *actAutoRotate{};
-    QAction *actKeepAlive{};
-
-    QDialog *focusDlg{};
-    VideoTile *focusTile{};
-
-    bool m_autoRotate = true;
-    bool m_keepBackgroundStreams = true;
-
-    VideoTile *tileForIndex(int camIdx) const;
+    QMenu *menuLanguage{};
+    QActionGroup *langGroup{};
+    QAction *actLangHu{}, *actLangEn{};
 };

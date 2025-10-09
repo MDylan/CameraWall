@@ -1,8 +1,11 @@
 #include "editcameradialog.h"
-#include <QVBoxLayout>
+#include "onvifclient.h"
 #include "util.h"
-
-using namespace Util;
+#include <QVBoxLayout>
+#include <QFormLayout>
+#include <QDialogButtonBox>
+#include <QMessageBox>
+#include <QPushButton>
 
 EditCameraDialog::EditCameraDialog(const Camera *existing, QWidget *parent)
     : QDialog(parent)
@@ -38,10 +41,8 @@ EditCameraDialog::EditCameraDialog(const Camera *existing, QWidget *parent)
     ovForm->addRow("Jelszó:", pass);
     QPushButton *btnFetch = new QPushButton("Profilok lekérése");
     ovForm->addRow(btnFetch);
-    lowCombo = new QComboBox;
-    highCombo = new QComboBox;
-    ovForm->addRow("Rács profil:", lowCombo);
-    ovForm->addRow("Teljes képernyő profil:", highCombo);
+    profileCombo = new QComboBox;
+    ovForm->addRow("Használandó profil:", profileCombo);
     info = new QLabel;
     info->setStyleSheet("color:#9fb2c8");
     ovForm->addRow(info);
@@ -81,6 +82,8 @@ void EditCameraDialog::setFromCamera(const Camera &c)
         user->setText(c.onvifUser);
         pass->setText(c.onvifPass);
         lastMediaXAddr = c.onvifMediaXAddr.toString();
+        // előre beállított token megjelölése (ha volt)
+        preselectedToken = c.onvifChosenToken;
     }
 }
 
@@ -105,14 +108,12 @@ Camera EditCameraDialog::cameraResult() const
         c.onvifPass = pass->text();
         if (!lastMediaXAddr.isEmpty())
             c.onvifMediaXAddr = QUrl(lastMediaXAddr);
-        if (lowCombo->currentIndex() >= 0 && lowCombo->currentIndex() < fetchedProfiles.size())
-            c.onvifLowToken = fetchedProfiles[lowCombo->currentIndex()].token;
-        if (highCombo->currentIndex() >= 0 && highCombo->currentIndex() < fetchedProfiles.size())
-            c.onvifHighToken = fetchedProfiles[highCombo->currentIndex()].token;
+        // kiválasztott profil token
+        if (profileCombo->currentIndex() >= 0 && profileCombo->currentIndex() < fetchedProfiles.size())
+            c.onvifChosenToken = fetchedProfiles[profileCombo->currentIndex()].token;
         if (c.name.isEmpty())
             c.name = device.host();
-        c.rtspUriLowCached = cachedLowUri;
-        c.rtspUriHighCached = cachedHighUri;
+        c.rtspUriCached.clear(); // újra kérjük majd szükség esetén
     }
     return c;
 }
@@ -122,7 +123,6 @@ void EditCameraDialog::fetchProfiles()
     info->setText("Kapcsolódás…");
     info->repaint();
     QCoreApplication::processEvents();
-
     QUrl device(QString("http://%1:%2/onvif/device_service").arg(ip->text().trimmed()).arg(port->value()));
     OnvifClient cli;
     QString err;
@@ -144,45 +144,28 @@ void EditCameraDialog::fetchProfiles()
     auto fmtProfile = [](const OnvifProfile &p)
     {
         const QString enc = p.encoding.isEmpty() ? "?" : p.encoding;
-        const QString res = p.resolution.isValid() ? QString("%1x%2").arg(p.resolution.width()).arg(p.resolution.height()) : "?";
+        const QString res = p.resolution.isValid()
+                                ? QString("%1x%2").arg(p.resolution.width()).arg(p.resolution.height())
+                                : "?";
         return QString("%1 (%2 %3)").arg(p.name.isEmpty() ? p.token : p.name, enc, res);
     };
 
-    // low: kis felbontás előre
-    QList<OnvifProfile> low = profs;
-    std::sort(low.begin(), low.end(), [](const OnvifProfile &a, const OnvifProfile &b)
-              { return a.resolution.width() * a.resolution.height() < b.resolution.width() * b.resolution.height(); });
-    // high: nagy felbontás előre
-    QList<OnvifProfile> high = profs;
-    std::sort(high.begin(), high.end(), [](const OnvifProfile &a, const OnvifProfile &b)
-              { return a.resolution.width() * a.resolution.height() > b.resolution.width() * b.resolution.height(); });
+    profileCombo->clear();
+    for (const auto &p : profs)
+        profileCombo->addItem(fmtProfile(p));
 
-    lowCombo->clear();
-    for (const auto &p : low)
-        lowCombo->addItem(fmtProfile(p));
-    highCombo->clear();
-    for (const auto &p : high)
-        highCombo->addItem(fmtProfile(p));
-    if (!low.isEmpty())
-        lowCombo->setCurrentIndex(0);
-    if (!high.isEmpty())
-        highCombo->setCurrentIndex(0);
-
-    // Best-effort cache
-    cachedLowUri.clear();
-    cachedHighUri.clear();
-    if (!low.isEmpty())
+    // ha volt előre beállított token, próbáljuk kiválasztani
+    if (!preselectedToken.isEmpty())
     {
-        QString uri;
-        if (cli.getStreamUri(media, user->text(), pass->text(), low.first().token, uri, &err))
-            cachedLowUri = uri;
-    }
-    if (!high.isEmpty())
-    {
-        QString uri;
-        if (cli.getStreamUri(media, user->text(), pass->text(), high.first().token, uri, &err))
-            cachedHighUri = uri;
+        for (int i = 0; i < profs.size(); ++i)
+        {
+            if (profs[i].token == preselectedToken)
+            {
+                profileCombo->setCurrentIndex(i);
+                break;
+            }
+        }
     }
 
-    info->setText("Profilok betöltve. (Mentéskor cache-elés)");
+    info->setText("Profilok betöltve.");
 }

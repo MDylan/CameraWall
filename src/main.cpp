@@ -1,21 +1,21 @@
 #include <QApplication>
 #include "camerawall.h"
+#include "language.h"
 
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
 
-    // (Opcionális) sötét paletta
-    QPalette pal = app.palette();
-    pal.setColor(QPalette::Window, QColor(11, 15, 20));
-    pal.setColor(QPalette::WindowText, QColor(232, 238, 247));
-    pal.setColor(QPalette::Base, QColor(17, 23, 34));
-    pal.setColor(QPalette::Text, QColor(232, 238, 247));
-    pal.setColor(QPalette::Button, QColor(28, 38, 56));
-    pal.setColor(QPalette::ButtonText, QColor(232, 238, 247));
-    app.setPalette(pal);
+    // ha van nálad olyan, hogy parancssorból nyelv: --lang=hu/en, azt a Language osztályod kezeli.
+    // Itt csak megpróbáljuk betölteni a mentettet (ha a Language ezt tudja),
+    // ha nincs ilyen API-d, ez a sor maradhat üresen.
+    // Példa (ha van):
+    // Language::instance().loadFromArgs(app);  // ha nálad létezik
+    // egyébként próbáljuk a mentettet:
+    // (ha nincs ilyen metódusod, kommenteld ki)
+    // Language::instance().loadSaved();
 
     CameraWall w;
-    w.show();
+    w.show(); // a konstruktora már full screenre teszi, de ez itt ártalmatlan
     return app.exec();
 }

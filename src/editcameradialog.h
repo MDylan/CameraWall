@@ -1,16 +1,16 @@
 #pragma once
 #include <QDialog>
 #include <QTabWidget>
-#include <QFormLayout>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QComboBox>
-#include <QDialogButtonBox>
 #include <QLabel>
-#include <QPushButton>
-#include "onvifclient.h"
-#include "util.h"
+#include <QDialogButtonBox>
 
+#include "util.h"
+#include "onvifclient.h"
+
+// A teljes app Camera modellje
 struct Camera
 {
     enum Mode
@@ -20,18 +20,19 @@ struct Camera
     } mode = RTSP;
     QString name;
 
-    // RTSP kézi
+    // RTSP (kézi)
     QUrl rtspManual;
 
-    // ONVIF mezők
+    // ONVIF
     QUrl onvifDeviceXAddr; // http://IP/onvif/device_service
     QUrl onvifMediaXAddr;  // GetCapabilities-ből
     QString onvifUser, onvifPass;
-    QString onvifLowToken, onvifHighToken; // kiválasztott profilok
 
-    // Cache-elt RTSP
-    QString rtspUriLowCached;
-    QString rtspUriHighCached;
+    // Mostantól EGY választott profil tokenjét használjuk mindenhol
+    QString onvifChosenToken;
+
+    // Cache-elt (feloldott) RTSP URI (ha már lekértük)
+    QString rtspUriCached;
 };
 
 class EditCameraDialog : public QDialog
@@ -46,15 +47,18 @@ public:
 private:
     void fetchProfiles();
 
+private:
     QTabWidget *tabs{};
     // RTSP tab
     QLineEdit *nameRtsp{}, *urlRtsp{};
     // ONVIF tab
     QLineEdit *nameOnvif{}, *ip{}, *user{}, *pass{};
     QSpinBox *port{};
-    QComboBox *lowCombo{}, *highCombo{};
+    QComboBox *profileCombo{}; // egyetlen legördülő: a választott profil
     QLabel *info{};
+
     QList<OnvifProfile> fetchedProfiles;
     QString lastMediaXAddr;
-    QString cachedLowUri, cachedHighUri;
+    QString cachedUri; // best-effort előtöltés
+    QString preselectedToken;
 };

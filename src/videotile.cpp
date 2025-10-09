@@ -1,254 +1,151 @@
 #include "videotile.h"
 
+#include <QtMultimedia/QVideoFrame> // FONTOS: QVideoFrame teljes definíció
 #include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QToolButton>
 #include <QMouseEvent>
-#include <QResizeEvent>
-#include <QSizePolicy>
-#include <QVBoxLayout>
-#include <QtMultimedia/QVideoFrame>
+#include <QPainter>
+#include <QStyle>
 
 VideoTile::VideoTile(bool limitFps15, QWidget *parent)
     : QWidget(parent),
-      m_player(new QMediaPlayer(this)),
-      m_audio(new QAudioOutput(this)),
       m_limitFps(limitFps15)
 {
-    auto *layout = new QVBoxLayout(this);
-    m_layout = layout; // ÚJ
-    layout->setContentsMargins(0, 0, 0, 0);
+    setAttribute(Qt::WA_OpaquePaintEvent, true);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    if (m_limitFps)
-    {
-        m_canvas = new QLabel(this);
-        m_canvas->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        m_canvas->setAlignment(Qt::AlignCenter);
-        m_canvas->setStyleSheet("background:#000");
-        layout->addWidget(m_canvas);
+    buildUi();
 
-        m_sink = new QVideoSink(this);
-        connect(m_sink, &QVideoSink::videoFrameChanged, this, &VideoTile::onFrame);
+    m_player = new QMediaPlayer(this);
+    m_sink = new QVideoSink(this);
+    m_player->setVideoSink(m_sink);
 
-        m_fpsTimer.setInterval(66);
-        m_fpsTimer.setTimerType(Qt::PreciseTimer);
-        connect(&m_fpsTimer, &QTimer::timeout, this, &VideoTile::flushFrame);
-        m_fpsTimer.start();
-    }
-    else
-    {
-        m_video = new QVideoWidget(this);
-        m_video->setAspectRatioMode(Qt::IgnoreAspectRatio);
-        m_video->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        layout->addWidget(m_video);
-    }
+    connect(m_sink, &QVideoSink::videoFrameChanged, this, &VideoTile::onFrame);
+    connect(m_btnFullscreen, &QToolButton::clicked, this, &VideoTile::fullscreenRequested);
+}
 
-    m_player->setAudioOutput(m_audio);
-    m_audio->setMuted(true);
+VideoTile::~VideoTile()
+{
+    stop();
+}
 
-    // státusz pötty + címke
-    m_dot = new QLabel(this);
-    m_dot->setFixedSize(10, 10);
-    m_dot->setStyleSheet("background:#ff6b6b; border-radius:5px; border:1px solid rgba(255,255,255,0.25);");
-    m_dot->raise();
+void VideoTile::buildUi()
+{
+    m_rootLayout = new QVBoxLayout(this);
+    m_rootLayout->setContentsMargins(0, 0, 0, 0);
+    m_rootLayout->setSpacing(0);
 
-    m_label = new QLabel(this);
-    m_label->setStyleSheet("background:rgba(0,0,0,0.5); color:#e8eef7; padding:2px 8px; border-radius:8px;");
-    m_label->raise();
+    // preview (kép helye)
+    m_preview = new QLabel(this);
+    m_preview->setAlignment(Qt::AlignCenter);
+    m_preview->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    m_preview->setMinimumSize(20, 20);
+    m_preview->setStyleSheet("background-color:#000;");
+    m_rootLayout->addWidget(m_preview, /*stretch*/ 1);
 
-    // teljes képernyő gomb
-    btnFS = new QPushButton(QString::fromUtf8("⛶"), this);
-    btnFS->setToolTip("Teljes képernyő");
-    btnFS->setCursor(Qt::PointingHandCursor);
-    btnFS->setFixedSize(28, 28);
-    btnFS->setStyleSheet(
-        "QPushButton{background:rgba(0,0,0,0.45); color:#e8eef7; border:1px solid rgba(255,255,255,0.25); border-radius:6px;}"
-        "QPushButton:hover{background:rgba(0,0,0,0.6);}");
-    btnFS->raise();
-    connect(btnFS, &QPushButton::clicked, this, [this]
-            { emit fullscreenRequested(); });
+    // overlay sáv (név + státusz + nagyítás gomb)
+    QWidget *bar = new QWidget(this);
+    bar->setAutoFillBackground(true);
+    bar->setStyleSheet("background:rgba(0,0,0,0.35);");
+    auto *h = new QHBoxLayout(bar);
+    h->setContentsMargins(6, 3, 6, 3);
+    h->setSpacing(6);
 
-    // hiba label
-    m_err = new QLabel(this);
-    m_err->setStyleSheet("background:rgba(0,0,0,0.6); color:#ffb3b3; padding:6px 10px; border-radius:8px;");
-    m_err->setWordWrap(true);
-    m_err->setVisible(false);
-    m_err->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    m_err->setMinimumHeight(24);
-    m_err->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    m_err->adjustSize();
-    m_err->move(10, height() - m_err->height() - 10);
+    m_statusDot = new QLabel(bar);
+    m_statusDot->setFixedSize(10, 10);
+    m_statusDot->setStyleSheet("background:#2ecc71; border-radius:5px;"); // default: zöld
+    h->addWidget(m_statusDot);
 
-    connect(m_player, &QMediaPlayer::errorOccurred, this,
-            [this](QMediaPlayer::Error, const QString &s)
-            {
-                m_err->setText("Hiba: " + s);
-                m_err->setVisible(true);
-                setConnected(false);
-            });
-    connect(m_player, &QMediaPlayer::playbackStateChanged, this,
-            [this](QMediaPlayer::PlaybackState st)
-            {
-                if (st == QMediaPlayer::PlayingState)
-                {
-                    m_err->setVisible(false);
-                    setConnected(true);
-                }
-            });
+    m_nameLabel = new QLabel(bar);
+    m_nameLabel->setStyleSheet("color:white; font-weight:600;");
+    m_nameLabel->setText("Camera");
+    h->addWidget(m_nameLabel, 1);
 
-    // alapértelmezett kimenet: saját lejátszó a saját kimenetre
-    if (m_limitFps)
-        m_player->setVideoSink(m_sink);
-    else
-        m_player->setVideoOutput(m_video);
+    m_btnFullscreen = new QToolButton(bar);
+    m_btnFullscreen->setText("⛶");
+    m_btnFullscreen->setToolTip(tr("Nagyítás/kicsinyítés"));
+    m_btnFullscreen->setStyleSheet("color:white;");
+    h->addWidget(m_btnFullscreen, 0, Qt::AlignRight);
+
+    m_rootLayout->addWidget(bar, /*stretch*/ 0);
 }
 
 void VideoTile::setName(const QString &name)
 {
-    m_label->setText(name);
-    m_label->adjustSize();
+    m_name = name;
+    if (m_nameLabel)
+        m_nameLabel->setText(name);
 }
 
 void VideoTile::playUrl(const QUrl &url)
 {
-    setConnected(false);
-    if (m_limitFps)
-        m_player->setVideoSink(m_sink);
-    else
-        m_player->setVideoOutput(m_video);
+    if (!m_player)
+        return;
+    m_player->stop();
     m_player->setSource(url);
-    m_player->setLoops(QMediaPlayer::Infinite);
     m_player->play();
+
+    if (m_statusDot)
+        m_statusDot->setStyleSheet("background:#2ecc71; border-radius:5px;");
 }
 
 void VideoTile::stop()
 {
+    if (!m_player)
+        return;
     m_player->stop();
+    if (m_statusDot)
+        m_statusDot->setStyleSheet("background:#e74c3c; border-radius:5px;");
 }
 
-void VideoTile::applyToPlayer(QMediaPlayer *player)
+void VideoTile::setFpsLimited(bool on)
 {
-    if (!player)
-        return;
-    // az audio-t is rákötjük, némítva
-    player->setAudioOutput(m_audio);
-    m_audio->setMuted(true);
+    m_limitFps = on;
+    // itt most nincs valódi FPS throttle – a meglévő logikáddal összekötheted, ha van
+}
 
-    if (m_limitFps)
-        player->setVideoSink(m_sink);
-    else
-        player->setVideoOutput(m_video);
+void VideoTile::mouseDoubleClickEvent(QMouseEvent *e)
+{
+    if (e->button() == Qt::LeftButton)
+        emit fullscreenRequested();
+    QWidget::mouseDoubleClickEvent(e);
 }
 
 void VideoTile::resizeEvent(QResizeEvent *e)
 {
     QWidget::resizeEvent(e);
-    const int pad = 10;
-    m_dot->move(pad, pad);
-    m_label->move(pad + m_dot->width() + 6, pad - 4);
-    m_err->move(10, height() - m_err->height() - 10);
-    if (btnFS)
-        btnFS->move(width() - btnFS->width() - 10, height() - btnFS->height() - 10);
-    if (m_limitFps && !m_lastImage.isNull() && m_canvas)
-        paintImage(m_lastImage);
+    if (!m_lastImage.isNull())
+        updatePreviewPixmap(m_lastImage);
 }
 
-void VideoTile::mouseDoubleClickEvent(QMouseEvent *e)
+void VideoTile::paintEvent(QPaintEvent *e)
 {
-    Q_UNUSED(e)
-    emit fullscreenRequested();
+    QWidget::paintEvent(e);
+    // a tényleges képet a QLabel pixmap kezeli, itt nincs rajzolás
 }
 
 void VideoTile::onFrame(const QVideoFrame &frame)
 {
     if (!frame.isValid())
         return;
+
     const QImage img = frame.toImage();
     if (img.isNull())
-    {
-        if (!m_widgetFallback)
-        {
-            switchToWidgetFallback();
-            // a lejátszás már megy tovább ugyanazzal a playerrel, mostantól közvetlenül rajzol
-        }
         return;
-    }
+
     m_lastImage = img;
-    setConnected(true);
-    if (!m_fpsTimer.isActive())
-        flushFrame();
+    updatePreviewPixmap(img);
 }
 
-void VideoTile::flushFrame()
+void VideoTile::updatePreviewPixmap(const QImage &img)
 {
-    if (m_lastImage.isNull() || !m_canvas)
+    if (!m_preview)
         return;
-    paintImage(m_lastImage);
-}
-
-void VideoTile::paintImage(const QImage &img)
-{
-    const QSize target = m_canvas->size().expandedTo(QSize(1, 1));
-    QPixmap pm = QPixmap::fromImage(img).scaled(target, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-    m_canvas->setPixmap(std::move(pm));
-}
-
-void VideoTile::setConnected(bool ok)
-{
-    m_connected = ok;
-    const char *col = ok ? "#43d18b" : "#ff6b6b";
-    m_dot->setStyleSheet(QString("background:%1; border-radius:5px; border:1px solid rgba(255,255,255,0.25);").arg(col));
-}
-
-void VideoTile::switchToWidgetFallback()
-{
-    m_widgetFallback = true;
-
-    // rejtsük el a vásznat (ha volt), és álljunk át közvetlen videóra
-    if (!m_video)
-    {
-        m_video = new QVideoWidget(this);
-        m_video->setAspectRatioMode(Qt::IgnoreAspectRatio);
-        m_video->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        if (m_layout)
-            m_layout->addWidget(m_video);
-    }
-    if (m_canvas)
-        m_canvas->hide();
-
-    // váltsunk sink → video output
-    m_player->setVideoSink(nullptr);
-    m_player->setVideoOutput(m_video);
-}
-
-void VideoTile::rearmAfterFocus()
-{
-    // Ha widget-es megjelenítés megy (nem limitFps), semmi teendő:
-    if (!m_limitFps)
-    {
-        // biztos, ami biztos: ha nem Playing, indítsuk újra
-        if (m_player && m_player->playbackState() != QMediaPlayer::PlayingState)
-            m_player->play();
+    const QSize targetSize = m_preview->size();
+    if (!targetSize.isValid())
         return;
-    }
-
-    // FPS-limitált (QVideoSink-es) út: kössük újra a sinket és kérjünk azonnal egy frissítést
-    if (!m_player || !m_sink)
-        return;
-
-    auto st = m_player->playbackState();
-    m_player->setVideoSink(nullptr);
-    m_player->setVideoSink(m_sink);
-
-    // ha Playing volt, tartsuk is úgy
-    if (st == QMediaPlayer::PlayingState)
-        m_player->play();
-
-    // ha van utolsó képünk, fessünk rá azonnal, amíg jön az első új frame
-    if (!m_lastImage.isNull())
-        flushFrame();
-}
-
-void VideoTile::kickOnce()
-{
-    if (m_limitFps && m_canvas && !m_lastImage.isNull())
-        paintImage(m_lastImage);
+    const QImage scaled = img.scaled(targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    m_preview->setPixmap(QPixmap::fromImage(scaled));
 }

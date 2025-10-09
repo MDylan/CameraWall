@@ -12,6 +12,8 @@
         "*.vuerd": "json",
         "*.moc": "cpp",
         "span": "cpp",
-        "format": "cpp"
+        "format": "cpp",
+        "qvideosink": "cpp",
+        "xutility": "cpp"
     }
 }
