@@ -1,4 +1,5 @@
 {
+    "app.title": "IP Camera Wall",
     "menu.cameras": "Cameras",
     "menu.add": "Add…",
     "menu.edit": "Edit…",
@@ -16,6 +17,7 @@
     "menu.language": "Language",
     "menu.about": "About…",
     "menu.exit": "Exit",
+    "menu.zoom": "Zoom IN/OUT",
     "msg.exit.confirm": "Are you sure to exit the program?",
     "status.hint": "F11 – fullscreen • Double-click/⛶: focus • Stream: as configured",
     "status.selected": "Selected",
@@ -29,5 +31,8 @@
     "msg.selectcam": "Select a camera (click a tile).",
     "msg.delete": "Are you sure to delete the selected camera?",
     "msg.clearall": "Are you sure to delete all cameras?",
-    "msg.nocams": "No cameras configured. Right click → Add…"
+    "msg.nocams": "No cameras configured. Right click → Add…",
+    "btn.ok": "OK",
+    "btn.cancel": "Cancel",
+    "msg.exit": "Are you sure to exit?"
 }

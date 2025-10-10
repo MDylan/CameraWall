@@ -1,4 +1,5 @@
 {
+    "app.title": "IP Kamera fal",
     "menu.cameras": "Kamerák",
     "menu.add": "Hozzáadás…",
     "menu.edit": "Szerkesztés…",
@@ -16,6 +17,7 @@
     "menu.language": "Nyelv",
     "menu.about": "Rólunk…",
     "menu.exit": "Kilépés",
+    "menu.zoom": "Nagyítás KI/BE",
     "msg.exit.confirm": "Biztosan bezárjuk az alkalmazást?",
     "status.hint": "F11 – teljes képernyő • Duplakatt/⛶: fókusz • Stream: beállítás szerint",
     "status.selected": "Kijelölt",
@@ -29,5 +31,8 @@
     "msg.selectcam": "Jelölj ki egy kamerát (kattints a csempére).",
     "msg.delete": "Biztosan törlöd a kijelölt kamerát?",
     "msg.clearall": "Biztosan törlöd az összes kamerát?",
-    "msg.nocams": "Nincs konfigurált kamera. Jobb klikk → Hozzáadás…"
+    "msg.nocams": "Nincs konfigurált kamera. Jobb klikk → Hozzáadás…",
+    "btn.ok": "OK",
+    "btn.cancel": "Mégsem",
+    "msg.exit": "Biztosan kilépsz?"
 }
