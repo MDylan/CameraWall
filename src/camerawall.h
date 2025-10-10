@@ -90,8 +90,12 @@ private:
 
     // menük
     QAction *actFps{}, *actFull{}, *actEdit{}, *actKeepAlive{}, *actAutoRotate{}, *actGrid2{}, *actGrid3{}, *actReorder{};
-    QActionGroup *gridGroup{};
-    QMenu *menuLanguage{};
-    QActionGroup *langGroup{};
     QAction *actLangHu{}, *actLangEn{};
+
+    QMenu *mCams{}, *mView{}, *mHelp{}, *menuLanguage{}, *mGridMenu{};
+    QActionGroup *gridGroup{}, *langGroup{};
+    QAction *actAdd{}, *actRemove{}, *actClear{}, *actReload{}, *actExit{}, *actAbout{};
+
+    void setupMenusOnce();
+    void updateMenuTexts();
 };

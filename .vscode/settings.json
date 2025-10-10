@@ -14,6 +14,7 @@
         "span": "cpp",
         "format": "cpp",
         "qvideosink": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "new": "cpp"
     }
 }

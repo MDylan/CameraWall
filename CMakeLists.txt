@@ -28,6 +28,13 @@ add_executable(CameraWall
     src/reorderdialog.cpp
 )
 
+qt_add_resources(CameraWall lang_res
+    PREFIX "/"
+    FILES
+        lang/hu.json
+        lang/en.json
+)
+
 target_link_libraries(CameraWall PRIVATE
     Qt6::Widgets
     Qt6::Multimedia

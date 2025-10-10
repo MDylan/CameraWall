@@ -2,8 +2,7 @@
 #include <QObject>
 #include <QHash>
 #include <QString>
-
-class QCoreApplication;
+#include <QCoreApplication>
 
 class Language : public QObject
 {
@@ -11,25 +10,32 @@ class Language : public QObject
 public:
     static Language &instance();
 
-    // kulcs → fordítás; ha nincs, fallback
-    QString t(const QString &key, const QString &fallback) const;
+    // Betölt nyelvet: "hu", "en", stb. Siker = true, és elmenti az ini-be
+    bool load(const QString &code);
 
-    // "hu" / "en" betöltése (JSON), INI-be menti, jelez
-    bool load(const QString &langCode);
-
-    // --lang=hu|en parancssorból; ha nincs, INI-ből; ha az sincs, "hu"
+    // Parancssori kapcsoló: --lang=hu (nem kötelező, de kényelmes)
     void loadFromArgs(const QCoreApplication &app);
 
-    QString current() const { return m_lang; }
+    // Fordítás lekérése kulccsal; fallback szöveggel
+    QString t(const QString &key, const QString &fallback = QString()) const;
+
+    QString current() const { return m_code; }
 
 signals:
     void languageChanged(const QString &code);
 
 private:
     Language() = default;
-    void persist(); // INI-be ment
-    bool loadFromJsonFile(const QString &path);
+    Q_DISABLE_COPY(Language)
+
+    bool loadFromResource(const QString &code);      // :/lang/xx.json
+    bool loadFromExecutableDir(const QString &code); // <exe>/lang/xx.json
+    bool loadFromCwd(const QString &code);           // ./lang/xx.json (fejlesztéshez)
+
+    bool loadJsonFile(const QString &path); // közös JSON beolvasó
+    void saveChoiceToIni() const;           // ini-be mentés
+    void loadChoiceFromIni();               // ini-ből visszatöltés
 
     QHash<QString, QString> m_map;
-    QString m_lang = "hu";
+    QString m_code{"hu"};
 };

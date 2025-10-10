@@ -5,6 +5,7 @@
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
+    Language::instance().loadFromArgs(app);
 
     // ha van nálad olyan, hogy parancssorból nyelv: --lang=hu/en, azt a Language osztályod kezeli.
     // Itt csak megpróbáljuk betölteni a mentettet (ha a Language ezt tudja),

@@ -2,7 +2,7 @@
 
 #include <QString>
 #include <QUrl>
-#include <QStandardPaths>
+#include <QCoreApplication>
 #include <QDir>
 #include <QDateTime>
 #include <QByteArray>
@@ -13,9 +13,9 @@ namespace Util
     // INI elérési út
     inline QString iniPath()
     {
-        const QString confDir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-        QDir().mkpath(confDir);
-        return confDir + "/camerawall.ini";
+        const QString exeDir = QCoreApplication::applicationDirPath();
+        QDir().mkpath(exeDir);             // biztos, ami biztos
+        return exeDir + "/camerawall.ini"; // az exe mappájában
     }
 
     // Nyers (akár már kódolt) sztringből QUrl
