@@ -35,6 +35,19 @@ qt_add_resources(CameraWall lang_res
         lang/en.json
 )
 
+qt_add_resources(CameraWall icons_res
+    PREFIX "/icons"
+    FILES
+        res/app.ico         # Windows/Qt-hoz jó
+        res/app_256.png
+)
+
+if (WIN32)
+    set(APP_ICON_RC ${CMAKE_CURRENT_SOURCE_DIR}/res/appicon.rc)
+    # Az RC-t hozzá kell adni az exe forrásaihoz:
+    target_sources(CameraWall PRIVATE ${APP_ICON_RC})
+endif()
+
 target_link_libraries(CameraWall PRIVATE
     Qt6::Widgets
     Qt6::Multimedia

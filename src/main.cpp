@@ -5,12 +5,13 @@
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
+    app.setWindowIcon(QIcon(":/icons/app.ico"));
     Language::instance().loadFromArgs(app);
     QApplication::setApplicationDisplayName(
         Language::instance().t("app.title", "IP Kamera fal"));
 
     // ha van nálad olyan, hogy parancssorból nyelv: --lang=hu/en, azt a Language osztályod kezeli.
-    // Itt csak megpróbáljuk betölteni a mentettet (ha a Language ezt tudja),
+    // Itt csak megpróbáljuk betölteni a mentettet (ha a Language ezt tudja),P
     // ha nincs ilyen API-d, ez a sor maradhat üresen.
     // Példa (ha van):
     // Language::instance().loadFromArgs(app);  // ha nálad létezik
