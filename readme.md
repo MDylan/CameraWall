@@ -118,4 +118,4 @@ Some cameras require enabling RTSP in their web UI and/or setting a **Main** vs 
 
 ## License
 
-See [licence.txt](LICENCES/LICENCE.txt)
+See [licence.txt](LICENSES/LICENSE.txt)
