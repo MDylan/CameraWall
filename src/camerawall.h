@@ -10,6 +10,7 @@
 #include <QSettings>
 #include <QtMultimedia/QMediaPlayer>
 #include <QtMultimedia/QVideoSink>
+#include <QShortcut> // + ESC gyorsbillentyűhöz
 
 #include "videotile.h"
 #include "editcameradialog.h" // Camera struct itt van
@@ -25,6 +26,7 @@ public:
 
 protected:
     void contextMenuEvent(QContextMenuEvent *e) override;
+    void keyPressEvent(QKeyEvent *e) override; // + ESC kezelés fallbackként
 
 private slots:
     // menü / működés
@@ -95,6 +97,9 @@ private:
     QMenu *mCams{}, *mView{}, *mHelp{}, *menuLanguage{}, *mGridMenu{};
     QActionGroup *gridGroup{}, *langGroup{};
     QAction *actAdd{}, *actRemove{}, *actClear{}, *actReload{}, *actExit{}, *actAbout{};
+
+    // ESC gyorsbillentyű
+    QShortcut *shortcutEsc{nullptr};
 
     void setupMenusOnce();
     void updateMenuTexts();

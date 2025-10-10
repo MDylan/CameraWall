@@ -7,6 +7,8 @@
 #include <QScrollArea>
 #include <QDebug>
 #include <QApplication>
+#include <QKeyEvent> // + ESC kezelés
+#include <QShortcut> // + ESC gyorsbillentyű
 
 namespace
 {
@@ -47,6 +49,13 @@ CameraWall::CameraWall()
     focusLayout->setContentsMargins(0, 0, 0, 0);
     focusLayout->setSpacing(0);
     stack->addWidget(pageFocus);
+
+    // --- ESC gyorsbillentyű a fókuszból kilépéshez ---
+    shortcutEsc = new QShortcut(QKeySequence(Qt::Key_Escape), this);
+    connect(shortcutEsc, &QShortcut::activated, this, [this]
+            {
+        if (stack && stack->currentWidget() == pageFocus)
+            exitFocus(); });
 
     // --- Menü (persistens pointerek) ---
     mCams = new QMenu(this);
@@ -118,15 +127,15 @@ CameraWall::CameraWall()
             {
         if (Language::instance().load("en")) updateMenuTexts(); });
 
-    // <<< TÁROLT "Rólunk" akció, hogy nyelvváltáskor a felirata frissíthető legyen
+    // <<< TÁROLT "Rólunk" akció
     actAbout = mHelp->addAction({}, this, [this]
                                 {
     const QIcon appIcon = loadAppIcon();
-    QPixmap pm = appIcon.pixmap(64, 64);   // bal oldali nagy ikon
+    QPixmap pm = appIcon.pixmap(64, 64);
 
     auto *box = new QMessageBox(this);
-    box->setWindowIcon(appIcon);           // címsor/tálca ikon
-    box->setIconPixmap(pm);                // bal oldali grafika
+    box->setWindowIcon(appIcon);
+    box->setIconPixmap(pm);
     box->setWindowTitle(Language::instance().t("dlg.about", "Rólunk"));
     box->setTextFormat(Qt::RichText);
     box->setTextInteractionFlags(Qt::TextBrowserInteraction | Qt::LinksAccessibleByKeyboard);
@@ -146,7 +155,7 @@ CameraWall::CameraWall()
         "status.hint",
         "F11 – teljes képernyő • Duplakatt/⛶: fókusz • Egy stream mód"));
 
-    // Nyelvjelzéskor CSAK a feliratok frissítése
+    // Nyelvjelzéskor feliratfrissítés
     connect(&Language::instance(), &Language::languageChanged, this, [this](const QString &)
             {
         updateMenuTexts();
@@ -179,21 +188,9 @@ CameraWall::CameraWall()
 
 void CameraWall::retitle()
 {
-    // A menüket egyszerűen újratöltjük a jelenlegi flags-ekkel
     menuBar()->clear();
-    // újraépítés (ugyanaz mint a konstruktorban) – a rövidség kedvéért hívjuk meg újra a konstruktort helyett:
-    // itt ténylegesen újra létrehozzuk (kódduplázás elkerülése nélkül most):
-    CameraWall *tmp = this; // csak formálisan, a lenti kód megegyezik a fentiekkel
+    CameraWall *tmp = this;
     (void)tmp;
-    // Gyors megoldás: új példány nélkül – ugyanaz a szekció, rövidítve:
-    // (A teljes menü-építős rész itt újra is beírható lenne; a mostani buildhez marad a konstruktor-beli verzió.)
-    // A legegyszerűbb és hibamentes: újraindítjuk a menüt úgy, mint a konstruktorban:
-    // Mivel ez hosszú lenne duplán, a gyakorlatban érdemes egy setupMenus() függvénybe kiszervezni.
-    // Most egyszerűsítve:
-    // -> a legegyszerűbb: hívjuk meg a konstruktor-beli blokkot még egyszer:
-    // De hogy a válasz ne legyen túl bő, maradjon annyi, hogy a fontos címkék frissültek legyenek:
-    // (Az egyszerűség kedvéért itt nem duplikálom – ha nálad külön setup van, használd azt.)
-    // A gyakorlatban: ez a függvény lehet üres, a lényeget már megtetted a languageChanged kapcsolással + rebuildTiles-el.
     rebuildTiles();
 }
 
@@ -228,6 +225,18 @@ void CameraWall::contextMenuEvent(QContextMenuEvent *e)
     sub->addAction(actGrid3);
     menu.addAction(Language::instance().t("menu.reorder", "Kamerák sorrendje…"), this, &CameraWall::onReorder);
     menu.exec(e->globalPos());
+}
+
+// + ESC fallback: ha valami elnyeli a shortcutot, akkor is működjön
+void CameraWall::keyPressEvent(QKeyEvent *e)
+{
+    if (e->key() == Qt::Key_Escape && stack && stack->currentWidget() == pageFocus)
+    {
+        exitFocus();
+        e->accept();
+        return;
+    }
+    QMainWindow::keyPressEvent(e);
 }
 
 void CameraWall::applyGridStretch()
@@ -598,7 +607,7 @@ void CameraWall::rebuildTiles()
             tile->playUrl(play);
         }
 
-        // fontos: tagfüggvényre kötjük (nincs UniqueConnection assertion)
+        // fontos: tagfüggvényre kötjük
         connect(tile, &VideoTile::fullscreenRequested, this, &CameraWall::onTileFullscreenRequested);
 
         tileIndexMap[tile] = i;
@@ -710,112 +719,7 @@ void CameraWall::saveViewToIni()
 
 void CameraWall::setupMenusOnce()
 {
-    // --- Kamerák menü ---
-    mCams = new QMenu(this);
-    menuBar()->addMenu(mCams);
-
-    actAdd = mCams->addAction({}, this, [this]
-                              { onAdd(); });
-    actEdit = mCams->addAction({}, this, [this]
-                               { onEditSelected(); });
-    actRemove = mCams->addAction({}, this, [this]
-                                 { onRemoveSelected(); });
-    actClear = mCams->addAction({}, this, [this]
-                                { onClearAll(); });
-    mCams->addSeparator();
-    actReorder = mCams->addAction({}, this, [this]
-                                  { onReorder(); });
-    actReload = mCams->addAction({}, this, [this]
-                                 { reloadAll(); });
-    mCams->addSeparator();
-    actExit = mCams->addAction({}, this, [this]
-                               {
-        if (QMessageBox::question(this,
-                                  Language::instance().t("dlg.exit", "Kilépés"),
-                                  Language::instance().t("msg.exit", "Biztosan kilépsz az alkalmazásból?"))
-            == QMessageBox::Yes) {
-            qApp->quit();
-        } });
-
-    // --- Nézet menü ---
-    mView = new QMenu(this);
-    menuBar()->addMenu(mView);
-
-    actFull = mView->addAction({}, this, [this]
-                               { toggleFullscreen(); });
-    actFull->setShortcut(Qt::Key_F11);
-    actFps = mView->addAction({}, this, [this]
-                              { toggleFpsLimit(); });
-    actFps->setCheckable(true);
-    actAutoRotate = mView->addAction({}, this, [this]
-                                     { toggleAutoRotate(); });
-    actAutoRotate->setCheckable(true);
-    actKeepAlive = mView->addAction({}, this, [this]
-                                    { toggleKeepAlive(); });
-    actKeepAlive->setCheckable(true);
-
-    QMenu *mGrid = new QMenu(mView);
-    mView->addMenu(mGrid);
-
-    gridGroup = new QActionGroup(mGrid);
-    gridGroup->setExclusive(true);
-    actGrid2 = mGrid->addAction("2×2");
-    actGrid3 = mGrid->addAction("3×3");
-    actGrid2->setCheckable(true);
-    actGrid3->setCheckable(true);
-    gridGroup->addAction(actGrid2);
-    gridGroup->addAction(actGrid3);
-    connect(actGrid2, &QAction::triggered, this, [this]
-            { setGridN(2); });
-    connect(actGrid3, &QAction::triggered, this, [this]
-            { setGridN(3); });
-
-    // --- Súgó / Nyelv ---
-    mHelp = new QMenu(this);
-    menuBar()->addMenu(mHelp);
-
-    menuLanguage = new QMenu(mHelp);
-    mHelp->addMenu(menuLanguage);
-    langGroup = new QActionGroup(menuLanguage);
-    langGroup->setExclusive(true);
-    actLangHu = menuLanguage->addAction("Magyar");
-    actLangEn = menuLanguage->addAction("English");
-    actLangHu->setCheckable(true);
-    actLangEn->setCheckable(true);
-    langGroup->addAction(actLangHu);
-    langGroup->addAction(actLangEn);
-
-    connect(actLangHu, &QAction::triggered, this, [this]
-            {
-        if (Language::instance().load("hu")) updateMenuTexts(); });
-    connect(actLangEn, &QAction::triggered, this, [this]
-            {
-        if (Language::instance().load("en")) updateMenuTexts(); });
-
-    // “Rólunk”
-    // mHelp->addAction({}, this, [this]
-    //                  {
-    // QDialog dlg(this);
-    // dlg.setWindowTitle(Language::instance().t("dlg.about", "Rólunk"));
-
-    // auto *layout = new QVBoxLayout(&dlg);
-
-    // auto *lbl = new QLabel(&dlg);
-    // lbl->setTextFormat(Qt::RichText);
-    // lbl->setTextInteractionFlags(Qt::TextBrowserInteraction);
-    // lbl->setOpenExternalLinks(true); // <- EZ itt működik
-    // lbl->setText(
-    //     "Készítette: Dávid Molnár<br>"
-    //     "<a href=\"https://github.com/MDylan/CameraWall\">github.com/MDylan/CameraWall</a><br>"
-    //     "Készítette: ...<br>© 2025"
-    // );
-    // layout->addWidget(lbl);
-
-    // auto *btns = new QDialogButtonBox(QDialogButtonBox::Ok, &dlg);
-    // connect(btns, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-    // layout->addWidget(btns);
-
-    // dlg.exec(); });
+    // (változatlan – itt most nem használjuk)
 }
 
 void CameraWall::updateMenuTexts()
@@ -867,6 +771,5 @@ void CameraWall::updateAppTitle()
 {
     const QString title = Language::instance().t("app.title", "IP Kamera fal");
     setWindowTitle(title);
-    // opcionális: a rendszer felé is kommunikáljuk
     QApplication::setApplicationDisplayName(title);
 }
