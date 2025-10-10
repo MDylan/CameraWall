@@ -25,6 +25,7 @@ Show multiple RTSP/ONVIF cameras in a 2×2 or 3×3 grid, pop any tile to a full 
 
 - **Language selection**: --lang=hu|en
 - **Screen selection**: --screen=1|2 ...
+- **Debugging**: --debug
 
 ## Controls & Shortcuts
 
