@@ -4,7 +4,27 @@
 
 int main(int argc, char **argv)
 {
+
+    // Szélesebb Qt/FFmpeg log-szabályok
+    qputenv("QT_LOGGING_RULES",
+            QByteArray("qt.multimedia.ffmpeg=false\n"
+                       "qt.multimedia.ffmpeg.*=false\n"
+                       "qt.multimedia.audio.*=false\n"));
+
+    // Ha a Qt ezt kezeli a te buildedben, ezek lejjebb tekerik az FFmpeg saját logját:
+    qputenv("QT_FFMPEG_LOG", "0");
+    qputenv("QT_FFMPEG_LOG_LEVEL", "quiet"); // vagy: "error"
+
     QApplication app(argc, argv);
+
+    //disable error messages
+    QLoggingCategory::setFilterRules(QStringLiteral(
+        "qt.multimedia.debug=false\n"
+        "qt.multimedia.info=false\n"
+        "qt.multimedia.ffmpeg=false\n"
+        "qt.multimedia.ffmpeg.*=false\n"
+        "qt.multimedia.audio.*=false\n"));
+
     app.setWindowIcon(QIcon(":/icons/app.ico"));
     Language::instance().loadFromArgs(app);
     QApplication::setApplicationDisplayName(
