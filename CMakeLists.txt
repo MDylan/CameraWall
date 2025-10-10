@@ -1,6 +1,19 @@
 cmake_minimum_required(VERSION 3.22)
 project(CameraWall LANGUAGES CXX)
 
+# --- Put outputs into build/release for all configs ---
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/release")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/release")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/release")
+
+# Multi-config generátorokhoz (pl. Visual Studio, Ninja Multi-Config) is fixáld:
+foreach(cfg DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
+  string(TOUPPER ${cfg} CFG)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CFG} "${CMAKE_BINARY_DIR}/release")
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${CFG} "${CMAKE_BINARY_DIR}/release")
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${CFG} "${CMAKE_BINARY_DIR}/release")
+endforeach()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -56,3 +69,29 @@ target_link_libraries(CameraWall PRIVATE
 )
 
 target_include_directories(CameraWall PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+
+# --- Minimal, robust windeployqt hívás (DLL-ek az EXE mellé) ---
+if (WIN32)
+  set(WINDEPLOYQT_EXE "c:/Qt/6.9.3/mingw_64/bin/windeployqt.exe")
+
+  # (nem kötelező) írd ki, hogy biztosan jó helyen keressük:
+  message(STATUS "windeployqt path: ${WINDEPLOYQT_EXE}")
+
+  if (EXISTS "${WINDEPLOYQT_EXE}")
+    add_custom_command(TARGET CameraWall POST_BUILD
+      # FONTOS: az EXE legyen az első paraméter!
+      COMMAND "${WINDEPLOYQT_EXE}" 
+              --release
+              --multimedia
+              --network
+              --verbose 2
+              "$<TARGET_FILE:CameraWall>"
+      # (ha szeretnéd, ide betehető még: --compiler-runtime)
+      COMMENT "Running windeployqt for $<TARGET_FILE:CameraWall>"
+      VERBATIM
+    )
+  else()
+    message(WARNING "windeployqt not found at: ${WINDEPLOYQT_EXE} — skipping Qt DLL deployment.")
+  endif()
+endif()
+
