@@ -1,0 +1,110 @@
+
+CameraWall 1.0 — License & Third‑Party Notices
+==============================================
+
+A. Project License (CameraWall)
+-------------------------------
+Copyright (c) 2025 Dávid Molnár and contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the “Software”), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+B. Third‑Party Software Included/Used
+-------------------------------------
+
+This product uses third‑party components. Their licenses and required notices
+are provided below. Where we dynamically link to libraries, we do not modify
+them. You may replace the DLLs with your own compatible builds as permitted by
+their licenses.
+
+1) Qt 6 (including Qt Multimedia)
+   License: GNU LGPL version 3 (LGPL‑3.0‑only) unless noted otherwise.
+   Copyright (C) The Qt Company Ltd. and other contributors.
+   Website: https://www.qt.io
+   Source:  https://download.qt.io/official_releases/qt/
+   Notes & Obligations (summary, see full text below):
+     • Dynamic linking: permitted under LGPL‑3.0.
+     • You may relink/replace the Qt DLLs with your own builds.
+     • Provide a copy of the LGPL‑3.0 license (included below).
+     • If you distribute modified Qt, provide source code of the modifications.
+
+   This product is built against Qt’s FFmpeg‑based multimedia backend.
+
+2) FFmpeg (used via Qt Multimedia backend)
+   License: Primarily LGPL‑2.1+; certain optional parts are GPL. Qt’s official
+            FFmpeg builds for the multimedia backend are intended for LGPL use.
+   Copyright (c) 2000‑present FFmpeg developers.
+   Website:  https://ffmpeg.org
+   Source:   https://ffmpeg.org/download.html
+   Notice:   “This product includes FFmpeg software licensed under the LGPL.
+              Source code for FFmpeg can be obtained from the website above.”
+   Important: If you swap in an FFmpeg build that includes GPL‑only parts,
+              you must comply with the GPL for the combined work.
+
+3) OpenSSL 3
+   License: Apache License 2.0
+   Copyright (c) 1998‑2024 The OpenSSL Project Authors.
+   Website:  https://www.openssl.org
+   Binaries may be included for TLS (https) support. See full Apache‑2.0 text
+   in Appendix C.
+
+4) MinGW‑w64 / GCC Runtime Libraries (Windows build toolchain)
+   • libstdc++: GPLv3 with the GCC Runtime Library Exception 3.1
+   • libgcc, libwinpthread: part of the MinGW‑w64/GCC runtime, permissive terms
+     apply as documented by MinGW‑w64 and GCC.
+   References:
+     https://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html
+     https://spdx.org/licenses/GPL-3.0-with-GCC-exception.html
+     https://www.mingw-w64.org/
+   A copy of the GCC Runtime Library Exception 3.1 is included (Appendix D).
+
+5) Icons / Artwork
+   Application icon and screenshots are © 2025 Dávid Molnár (unless stated
+   otherwise). You must have permission to redistribute any third‑party artwork.
+
+
+C. Compliance Notes & How to Obtain Sources
+-------------------------------------------
+
+• Qt & FFmpeg (LGPL compliance):
+  – We use dynamic linking. You are free to replace the bundled Qt/FFmpeg DLLs
+    with your own compatible builds.
+  – We do not distribute modified Qt or FFmpeg. If you require exact source
+    versions used to build the bundled DLLs, get them from the vendors’ sites,
+    or contact us for assistance.
+  – A copy of the LGPL‑3.0 license is included in Appendix B.
+
+• OpenSSL:
+  – Distributed under the Apache‑2.0 license. See Appendix C for the full text.
+
+• GCC/MinGW runtime:
+  – libstdc++ is distributed under GPLv3 with the GCC Runtime Library Exception.
+    The exception text is included (Appendix D).
+
+• Offer to provide sources (if/when required by the relevant license):
+  For three (3) years from your receipt of this product, we will provide, upon
+  request, the unmodified source packages of the third‑party libraries we
+  redistribute (Qt, FFmpeg as applicable, OpenSSL) or a written offer and
+  download locations sufficient to obtain them. Contact: <add your contact/email>.
+
+
+Appendix A — MIT License (CameraWall)
+-------------------------------------
+(Already provided in Section A above.)
+
