@@ -173,10 +173,28 @@ void CameraWall::retitle()
 
 void CameraWall::contextMenuEvent(QContextMenuEvent *e)
 {
+    QWidget *hit = QApplication::widgetAt(e->globalPos());
+    VideoTile *vt = nullptr;
+    for (QWidget *p = hit; p; p = p->parentWidget())
+    {
+        if ((vt = qobject_cast<VideoTile *>(p)))
+            break;
+    }
+    const int ctxIdx = vt ? tileIndexMap.value(vt, -1) : -1;
+
     QMenu menu(this);
     menu.addAction(Language::instance().t("menu.add", "Hozzáadás…"), this, &CameraWall::onAdd);
-    menu.addAction(Language::instance().t("menu.edit", "Szerkesztés…"), this, &CameraWall::onEditSelected);
-    menu.addAction(Language::instance().t("menu.remove", "Kijelölt törlése"), this, &CameraWall::onRemoveSelected);
+    menu.addAction(Language::instance().t("menu.edit", "Szerkesztés…"),
+                   this, [this, ctxIdx]
+                   {
+        if (ctxIdx >= 0) selectedIndex = ctxIdx;
+        onEditSelected(); });
+
+    menu.addAction(Language::instance().t("menu.remove", "Kijelölt törlése"),
+                   this, [this, ctxIdx]
+                   {
+        if (ctxIdx >= 0) selectedIndex = ctxIdx;
+        onRemoveSelected(); });
     menu.addSeparator();
     menu.addAction(Language::instance().t("menu.fullscreen", "Teljes képernyő (ablak)"), this, &CameraWall::toggleFullscreen);
     QMenu *sub = menu.addMenu(Language::instance().t("menu.grid", "Rács"));
@@ -220,6 +238,7 @@ void CameraWall::onAdd()
 
 void CameraWall::onEditSelected()
 {
+    qDebug() << "Edit selected:" << selectedIndex;
     if (selectedIndex < 0 || selectedIndex >= cams.size())
     {
         QMessageBox::information(this, Language::instance().t("dlg.edit", "Szerkesztés"),
