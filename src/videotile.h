@@ -5,6 +5,7 @@
 #include <QtMultimedia/QVideoSink>
 #include <QLabel>
 #include <QPushButton>
+#include "language.h"
 
 class VideoTile : public QWidget
 {
@@ -58,4 +59,6 @@ private:
     // egyebek
     QString m_name;
     bool m_limitFps15{true};
+private slots:
+    void updateTranslations();
 };

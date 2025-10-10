@@ -98,4 +98,5 @@ private:
 
     void setupMenusOnce();
     void updateMenuTexts();
+    void updateAppTitle();
 };

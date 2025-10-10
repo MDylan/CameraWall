@@ -1,4 +1,5 @@
 #include "videotile.h"
+#include "language.h"
 #include <QPainter>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -48,14 +49,27 @@ void VideoTile::rebuildUi()
 
     m_zoomBtn = new QPushButton(u8"⛶", this);
     m_zoomBtn->setCursor(Qt::PointingHandCursor);
-    m_zoomBtn->setToolTip(tr("Teljes nézet"));
     m_zoomBtn->setFocusPolicy(Qt::NoFocus);
     m_zoomBtn->setStyleSheet(
         "QPushButton{color:white; background-color:rgba(0,0,0,110); border:none; padding:4px 8px;}"
         "QPushButton:hover{background-color:rgba(0,0,0,170);}");
+    updateTranslations();
     connect(m_zoomBtn, &QPushButton::clicked, this, &VideoTile::onZoomClicked);
+    connect(&Language::instance(), &Language::languageChanged,
+            this, &VideoTile::updateTranslations);
 
     updateHudGeometry();
+}
+
+void VideoTile::updateTranslations()
+{
+    if (m_zoomBtn)
+    {
+        m_zoomBtn->setToolTip(
+            Language::instance().t("menu.zoom", "Zoom KI/BE"));
+    }
+    // Ha van más szöveges elem a csempén (pl. státusz tooltip),
+    // azokat is itt érdemes frissíteni.
 }
 
 void VideoTile::updateHudGeometry()

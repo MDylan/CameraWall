@@ -6,10 +6,12 @@
 #include <QContextMenuEvent>
 #include <QScrollArea>
 #include <QDebug>
+#include <QApplication>
 
 CameraWall::CameraWall()
 {
-    setWindowTitle("IP Kamera fal");
+    // setWindowTitle(Language::instance().t("app.title", "IP Kamera fal"));
+    updateAppTitle();
 
     // --- központi stackelt nézet ---
     central = new QWidget(this);
@@ -47,12 +49,11 @@ CameraWall::CameraWall()
     mCams->addSeparator();
     actExit = mCams->addAction({}, this, [this]
                                {
-        if (QMessageBox::question(this,
-                Language::instance().t("dlg.exit", "Kilépés"),
-                Language::instance().t("msg.exit", "Biztosan kilépsz az alkalmazásból?"))
-            == QMessageBox::Yes) {
-            qApp->quit();
-        } });
+    if (Util::askOkCancel(this,
+                          "dlg.exit", "Kilépés",
+                          "msg.exit", "Biztosan kilépsz az alkalmazásból?")) {
+        qApp->quit();
+    } });
 
     mView = new QMenu(this);
     menuBar()->addMenu(mView);
@@ -123,6 +124,7 @@ CameraWall::CameraWall()
     connect(&Language::instance(), &Language::languageChanged, this, [this](const QString &)
             {
         updateMenuTexts();
+        updateAppTitle();
         statusBar()->showMessage(Language::instance().t(
             "status.hint",
             "F11 – teljes képernyő • Duplakatt/⛶: fókusz • Egy stream mód")); });
@@ -795,4 +797,12 @@ void CameraWall::updateMenuTexts()
     // Súgó menü
     if (actAbout)
         actAbout->setText(Language::instance().t("menu.about", "Rólunk"));
+}
+
+void CameraWall::updateAppTitle()
+{
+    const QString title = Language::instance().t("app.title", "IP Kamera fal");
+    setWindowTitle(title);
+    // opcionális: a rendszer felé is kommunikáljuk
+    QApplication::setApplicationDisplayName(title);
 }

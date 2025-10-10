@@ -7,6 +7,8 @@
 #include <QDateTime>
 #include <QByteArray>
 
+class QWidget;
+
 namespace Util
 {
 
@@ -80,5 +82,9 @@ namespace Util
             iso += 'Z';
         return iso;
     }
+
+    bool askOkCancel(QWidget *parent,
+                     const QString &titleKey, const QString &titleFallback,
+                     const QString &textKey, const QString &textFallback);
 
 } // namespace Util

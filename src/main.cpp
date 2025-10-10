@@ -6,6 +6,8 @@ int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
     Language::instance().loadFromArgs(app);
+    QApplication::setApplicationDisplayName(
+        Language::instance().t("app.title", "IP Kamera fal"));
 
     // ha van nálad olyan, hogy parancssorból nyelv: --lang=hu/en, azt a Language osztályod kezeli.
     // Itt csak megpróbáljuk betölteni a mentettet (ha a Language ezt tudja),
