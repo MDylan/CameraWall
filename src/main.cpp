@@ -9,6 +9,20 @@
 #include <QIcon>
 #include <QLoggingCategory>
 
+static QFile gLogFile;
+static void fileLogHandler(QtMsgType, const QMessageLogContext &, const QString &msg)
+{
+    if (!gLogFile.isOpen())
+    {
+        gLogFile.setFileName(QCoreApplication::applicationDirPath() + "/CameraWall.log");
+        gLogFile.open(QIODevice::Append | QIODevice::Text);
+    }
+    QTextStream ts(&gLogFile);
+    ts << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz ")
+       << msg << '\n';
+    ts.flush();
+}
+
 int main(int argc, char **argv)
 {
     // Szélesebb Qt/FFmpeg log-szabályok
@@ -46,7 +60,18 @@ int main(int argc, char **argv)
                                  "index-or-name");
     parser.addOption(optScreen);
 
+    QCommandLineOption debugOpt(QStringList() << "d" << "debug",
+                                "Enable file logging to CameraWall.log");
+    parser.addOption(debugOpt);
+
     parser.process(app);
+
+    if (parser.isSet(debugOpt))
+    {
+        qInstallMessageHandler(fileLogHandler);
+        qDebug() << "[main] File logging enabled at"
+                 << (QCoreApplication::applicationDirPath() + "/CameraWall.log");
+    }
 
     // Kijelző kiválasztása, ha megadták
     QScreen *targetScreen = nullptr;
