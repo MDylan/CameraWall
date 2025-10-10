@@ -7,7 +7,7 @@ Show multiple RTSP/ONVIF cameras in a 2×2 or 3×3 grid, pop any tile to a full 
 
 - **Grid view**: 2×2 or 3×3 pages; auto-rotate pages every 10 seconds when you have more cameras than fit.
 - **Focus view**: Double-click a tile (or use the ⛶ button) to zoom to full view.  
-  Press **Esc** to return to the grid.
+  Press **Esc** to return to the grid. Use **← / →** to switch the focused camera (wrap-around).
 - **Automatic reconnect**: If a stream stalls or errors, the app waits **5 seconds** and retries cleanly (stop → play).  
   It does **not** keep the last frame.
 - **Clear status colors** on each tile:
@@ -30,6 +30,7 @@ Show multiple RTSP/ONVIF cameras in a 2×2 or 3×3 grid, pop any tile to a full 
 
 - **Double-click** tile or click **⛶** → Enter/exit focus view
 - **Esc** → Exit focus view back to grid
+- **← / →** → While in focus view, switch to previous/next camera (wrap-around)
 - **F11** → Toggle fullscreen window
 - **Right-click** → Context menu (Add / Edit / Remove / Grid size / Reorder / Reload)
 - **Menus** → Cameras / View / Help; language switching supported
