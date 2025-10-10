@@ -8,8 +8,21 @@
 #include <QDebug>
 #include <QApplication>
 
+namespace
+{
+    QIcon loadAppIcon()
+    {
+        QIcon ico(":/icons/res/app.ico");
+        if (!ico.isNull())
+            return ico;
+        QIcon png(":/icons/res/app_256.png");
+        return png;
+    }
+}
+
 CameraWall::CameraWall()
 {
+    setWindowIcon(loadAppIcon());
     // setWindowTitle(Language::instance().t("app.title", "IP Kamera fal"));
     updateAppTitle();
 
@@ -107,11 +120,24 @@ CameraWall::CameraWall()
 
     // <<< TÁROLT "Rólunk" akció, hogy nyelvváltáskor a felirata frissíthető legyen
     actAbout = mHelp->addAction({}, this, [this]
-                                { QMessageBox::information(this,
-                                                           Language::instance().t("dlg.about", "Rólunk"),
-                                                           "CameraWall – egyszerű RTSP/ONVIF megjelenítő.\n"
-                                                           "Készítette: ...\n"
-                                                           "© 2025"); });
+                                {
+    const QIcon appIcon = loadAppIcon();
+    QPixmap pm = appIcon.pixmap(64, 64);   // bal oldali nagy ikon
+
+    auto *box = new QMessageBox(this);
+    box->setWindowIcon(appIcon);           // címsor/tálca ikon
+    box->setIconPixmap(pm);                // bal oldali grafika
+    box->setWindowTitle(Language::instance().t("dlg.about", "Rólunk"));
+    box->setTextFormat(Qt::RichText);
+    box->setTextInteractionFlags(Qt::TextBrowserInteraction | Qt::LinksAccessibleByKeyboard);
+    box->setText(
+        "CameraWall<br>"
+        "Just a simple IP camera software. Enjoy! :)<br>"
+        "Created by: Dávid Molnár<br>"
+        "<a href=\"https://github.com/MDylan/CameraWall\">github.com/MDylan/CameraWall</a><br>"
+        "<br>© 2025");
+    box->setStandardButtons(QMessageBox::Ok);
+    box->exec(); });
 
     // kezdeti szövegek
     updateMenuTexts();
@@ -767,10 +793,29 @@ void CameraWall::setupMenusOnce()
         if (Language::instance().load("en")) updateMenuTexts(); });
 
     // “Rólunk”
-    mHelp->addAction({}, this, [this]
-                     { QMessageBox::information(this, Language::instance().t("dlg.about", "Rólunk"),
-                                                "CameraWall – egyszerű RTSP/ONVIF megjelenítő.\n"
-                                                "Készítette: ...\n© 2025"); });
+    // mHelp->addAction({}, this, [this]
+    //                  {
+    // QDialog dlg(this);
+    // dlg.setWindowTitle(Language::instance().t("dlg.about", "Rólunk"));
+
+    // auto *layout = new QVBoxLayout(&dlg);
+
+    // auto *lbl = new QLabel(&dlg);
+    // lbl->setTextFormat(Qt::RichText);
+    // lbl->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    // lbl->setOpenExternalLinks(true); // <- EZ itt működik
+    // lbl->setText(
+    //     "Készítette: Dávid Molnár<br>"
+    //     "<a href=\"https://github.com/MDylan/CameraWall\">github.com/MDylan/CameraWall</a><br>"
+    //     "Készítette: ...<br>© 2025"
+    // );
+    // layout->addWidget(lbl);
+
+    // auto *btns = new QDialogButtonBox(QDialogButtonBox::Ok, &dlg);
+    // connect(btns, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    // layout->addWidget(btns);
+
+    // dlg.exec(); });
 }
 
 void CameraWall::updateMenuTexts()
