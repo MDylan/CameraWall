@@ -60,6 +60,7 @@ private:
 
     // nyelvi címkék újrarakása
     void retitle();
+    void focusShow(int camIdx); // fókuszban lévő csempe lecserélése bal/jobb lapozásnál
 
 private:
     // --- központi stack: 0 = rács, 1 = fókusz ---

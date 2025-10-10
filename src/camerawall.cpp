@@ -230,11 +230,26 @@ void CameraWall::contextMenuEvent(QContextMenuEvent *e)
 // + ESC fallback: ha valami elnyeli a shortcutot, akkor is működjön
 void CameraWall::keyPressEvent(QKeyEvent *e)
 {
-    if (e->key() == Qt::Key_Escape && stack && stack->currentWidget() == pageFocus)
+    qDebug() << "[keyPressEvent]" << e->key();
+    qDebug() << "[keyPressEvent] pageFocus = " << pageFocus;
+    if (stack && stack->currentWidget() == pageFocus)
     {
-        exitFocus();
-        e->accept();
-        return;
+        if (e->key() == Qt::Key_Escape)
+        {
+            exitFocus();
+            e->accept();
+            return;
+        }
+        if (e->key() == Qt::Key_Right)
+        {
+            focusShow(m_focusCamIdx + 1);
+            return;
+        }
+        if (e->key() == Qt::Key_Left)
+        {
+            focusShow(m_focusCamIdx - 1);
+            return;
+        }
     }
     QMainWindow::keyPressEvent(e);
 }
@@ -772,4 +787,122 @@ void CameraWall::updateAppTitle()
     const QString title = Language::instance().t("app.title", "IP Kamera fal");
     setWindowTitle(title);
     QApplication::setApplicationDisplayName(title);
+}
+void CameraWall::focusShow(int camIdx)
+{
+    qDebug() << "[focusShow] in camIdx =" << camIdx
+             << " tiles.size()=" << tiles.size()
+             << " m_focusCamIdx=" << m_focusCamIdx;
+
+    if (tiles.isEmpty())
+    {
+        qDebug() << "[focusShow] -> tiles is empty, return";
+        return;
+    }
+
+    // Körkörös index (-1 -> utolsó; túlcsordulás -> 0)
+    if (camIdx < 0)
+    {
+        camIdx = tiles.size() - 1;
+        qDebug() << "[focusShow] wrapped to last =>" << camIdx;
+    }
+    else if (camIdx >= tiles.size())
+    {
+        camIdx = 0;
+        qDebug() << "[focusShow] wrapped to first =>" << camIdx;
+    }
+
+    qDebug() << "[focusShow] #1 normalized camIdx =" << camIdx;
+
+    // Ha még nem fókusz módban vagyunk: egyszerűen lépjünk be oda
+    if (m_focusCamIdx == -1)
+    {
+        qDebug() << "[focusShow] not in focus mode -> enterFocus(" << camIdx << ")";
+        enterFocus(camIdx);
+        return;
+    }
+
+    qDebug() << "[focusShow] #2 currently focused =" << m_focusCamIdx;
+
+    // Ugyanarra ne csináljunk semmit
+    if (camIdx == m_focusCamIdx)
+    {
+        qDebug() << "[focusShow] target equals current, nothing to do";
+        return;
+    }
+
+    // --- Itt már fókusz módban vagyunk, és másik csempére váltunk ---
+    VideoTile *newTile = tiles[camIdx];
+    VideoTile *oldTile = focusTile;
+
+    if (!newTile || !oldTile || !grid || !focusLayout || !pageFocus || !pageGrid)
+    {
+        qDebug() << "[focusShow] missing ptrs ->"
+                 << "newTile?" << (newTile != nullptr)
+                 << "oldTile?" << (oldTile != nullptr)
+                 << "grid?" << (grid != nullptr)
+                 << "focusLayout?" << (focusLayout != nullptr);
+        return;
+    }
+
+    // Keressük meg az új tile rácsbeli pozícióját
+    int n = grid->count();
+    int newRow = -1, newCol = -1, rs = 0, cs = 0;
+    for (int i = 0; i < n; ++i)
+    {
+        QLayoutItem *it = grid->itemAt(i);
+        if (!it)
+            continue;
+        if (it->widget() == newTile)
+        {
+            grid->getItemPosition(i, &newRow, &newCol, &rs, &cs);
+            break;
+        }
+    }
+    qDebug() << "[focusShow] grid items =" << n
+             << " -> new pos row=" << newRow << " col=" << newCol;
+
+    if (newRow < 0 || newCol < 0)
+    {
+        // Ha valamiért nem találjuk (pl. nem ezen az oldalon lenne a csempe),
+        // essünk vissza egy egyszerű exit+enter műveletre.
+        qDebug() << "[focusShow] newTile not found in current grid -> exit+enter fallback";
+        exitFocus();
+        enterFocus(camIdx);
+        return;
+    }
+
+    // 1) Az aktuális fókusz csempét visszatesszük a rácsba a placeholder régi helyére
+    qDebug() << "[focusShow] put oldTile back to grid at" << focusRow << focusCol;
+    focusLayout->removeWidget(oldTile);
+    oldTile->setParent(pageGrid);
+    grid->addWidget(oldTile, focusRow, focusCol);
+
+    // 2) A placeholder-t átrakjuk az új csempe helyére (hogy tudjuk, hova térjünk vissza legközelebb)
+    if (focusPlaceholder)
+    {
+        qDebug() << "[focusShow] move placeholder to" << newRow << newCol;
+        grid->addWidget(focusPlaceholder, newRow, newCol);
+    }
+    else
+    {
+        qDebug() << "[focusShow] WARNING: focusPlaceholder is null!";
+    }
+
+    // 3) Az új csempét kiemeljük fókuszba
+    qDebug() << "[focusShow] move newTile to focus";
+    grid->removeWidget(newTile);
+    newTile->setParent(pageFocus);
+    newTile->setMinimumSize(0, 0);
+    newTile->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    focusLayout->addWidget(newTile);
+
+    // 4) Állapot frissítés
+    focusTile = newTile;
+    m_focusCamIdx = camIdx;
+    focusRow = newRow;
+    focusCol = newCol;
+
+    qDebug() << "[focusShow] updated m_focusCamIdx =" << m_focusCamIdx
+             << " focusRow=" << focusRow << " focusCol=" << focusCol;
 }
