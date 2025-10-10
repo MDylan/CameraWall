@@ -21,6 +21,11 @@ Show multiple RTSP/ONVIF cameras in a 2×2 or 3×3 grid, pop any tile to a full 
   - Use **ONVIF** discovery (with cached stream URI support).
 - **Noise-free logs**: Optional filtering of FFmpeg logs (see below).
 
+## Command Line options
+
+- **Language selection**: --lang=hu|en
+- **Screen selection**: --screen=1|2 ...
+
 ## Controls & Shortcuts
 
 - **Double-click** tile or click **⛶** → Enter/exit focus view
@@ -112,5 +117,4 @@ Some cameras require enabling RTSP in their web UI and/or setting a **Main** vs 
 
 ## License
 
-Choose and add a license here (e.g. MIT).  
-Include `LICENSE` in the repo if you’d like contributions.
+MIT
