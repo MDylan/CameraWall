@@ -110,13 +110,6 @@ Some cameras require enabling RTSP in their web UI and/or setting a **Main** vs 
 - **Focus view stutters**:
   - Enable **Keep background streams** only if needed; otherwise pause them in the background.
 
-## Roadmap Ideas
-
-- 4×4 grid
-- Per-tile snapshot
-- Export/import configuration
-- Recording hooks
-
 ## License
 
 Choose and add a license here (e.g. MIT).  

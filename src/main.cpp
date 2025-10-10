@@ -2,9 +2,15 @@
 #include "camerawall.h"
 #include "language.h"
 
+#include <QCommandLineParser>
+#include <QCommandLineOption>
+#include <QScreen>
+#include <QWindow>
+#include <QIcon>
+#include <QLoggingCategory>
+
 int main(int argc, char **argv)
 {
-
     // Szélesebb Qt/FFmpeg log-szabályok
     qputenv("QT_LOGGING_RULES",
             QByteArray("qt.multimedia.ffmpeg=false\n"
@@ -17,7 +23,7 @@ int main(int argc, char **argv)
 
     QApplication app(argc, argv);
 
-    //disable error messages
+    // disable error messages
     QLoggingCategory::setFilterRules(QStringLiteral(
         "qt.multimedia.debug=false\n"
         "qt.multimedia.info=false\n"
@@ -30,16 +36,62 @@ int main(int argc, char **argv)
     QApplication::setApplicationDisplayName(
         Language::instance().t("app.title", "IP Kamera fal"));
 
-    // ha van nálad olyan, hogy parancssorból nyelv: --lang=hu/en, azt a Language osztályod kezeli.
-    // Itt csak megpróbáljuk betölteni a mentettet (ha a Language ezt tudja),P
-    // ha nincs ilyen API-d, ez a sor maradhat üresen.
-    // Példa (ha van):
-    // Language::instance().loadFromArgs(app);  // ha nálad létezik
-    // egyébként próbáljuk a mentettet:
-    // (ha nincs ilyen metódusod, kommenteld ki)
-    // Language::instance().loadSaved();
+    // --- Command line: --screen=<index-or-name> ---
+    QCommandLineParser parser;
+    parser.setApplicationDescription("CameraWall");
+    parser.addHelpOption();
+
+    QCommandLineOption optScreen(QStringList() << "screen",
+                                 "Screen index (0..N-1) or name substring.",
+                                 "index-or-name");
+    parser.addOption(optScreen);
+
+    parser.process(app);
+
+    // Kijelző kiválasztása, ha megadták
+    QScreen *targetScreen = nullptr;
+    if (parser.isSet(optScreen))
+    {
+        const QString value = parser.value(optScreen).trimmed();
+        const auto screens = QGuiApplication::screens();
+
+        bool ok = false;
+        int idx = value.toInt(&ok);
+        if (ok)
+        {
+            if (idx >= 0 && idx < screens.size())
+                targetScreen = screens.at(idx);
+        }
+        else
+        {
+            for (QScreen *s : screens)
+            {
+                if (s->name().contains(value, Qt::CaseInsensitive))
+                {
+                    targetScreen = s;
+                    break;
+                }
+            }
+        }
+    }
 
     CameraWall w;
+
+    // A konstruktorod már fullscreenre teheti az ablakot.
+    // Ilyenkor gondoskodunk a native windowról, majd átvisszük a kívánt képernyőre.
+    if (targetScreen)
+    {
+        if (!w.windowHandle())
+            w.createWinId(); // biztosítja a native ablakot
+
+        if (w.windowHandle())
+            w.windowHandle()->setScreen(targetScreen);
+
+        // Ha nem fullscreenez a konstruktor, ez jól pozicionál:
+        // (ha igen, akkor is átteszi a megfelelő képernyőre)
+        w.setGeometry(targetScreen->availableGeometry());
+    }
+
     w.show(); // a konstruktora már full screenre teszi, de ez itt ártalmatlan
     return app.exec();
 }
