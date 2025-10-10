@@ -10,7 +10,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-add_executable(CameraWall
+add_executable(CameraWall WIN32
     src/main.cpp
     src/camerawall.h
     src/camerawall.cpp
