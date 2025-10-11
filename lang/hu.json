@@ -36,5 +36,17 @@
     "msg.nocams": "Nincs konfigurált kamera. Jobb klikk → Hozzáadás…",
     "btn.ok": "OK",
     "btn.cancel": "Mégsem",
-    "msg.exit": "Biztosan kilépsz?"
+    "msg.exit": "Biztosan kilépsz?",
+    "editcamera.edit" : "Kamera szerkesztése",
+    "editcamera.add" : "Kamera hozzáadása",
+    "editcamera.name": "Név",
+    "editcamera.username": "Felhasználó:",
+    "editcamera.password": "Jelszó:",
+    "editcamera.retrieveprofiles": "Profilok lekérése",
+    "editcamera.profileuse": "Használandó profil:",
+    "editcamera.rtsp_manual": "RTSP (kézi)",
+    "editcamera.connecting": "Kapcsolódás…",
+    "editcamera.error_getcapabilities": "GetCapabilities hiba:",
+    "editcamera.error_getprofiles": "GetProfiles hiba:",
+    "editcamera.profiles_loaded": "Profilok betöltve."
 }

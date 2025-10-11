@@ -9,6 +9,7 @@
 
 #include "util.h"
 #include "onvifclient.h"
+#include "language.h"
 
 // A teljes app Camera modellje
 struct Camera

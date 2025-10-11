@@ -36,5 +36,17 @@
     "msg.nocams": "No cameras configured. Right click → Add…",
     "btn.ok": "OK",
     "btn.cancel": "Cancel",
-    "msg.exit": "Are you sure to exit?"
+    "msg.exit": "Are you sure to exit?",
+    "editcamera.edit": "Edit Camera",
+    "editcamera.add": "Add new Camera",
+    "editcamera.name": "Name",
+    "editcamera.username": "Username:",
+    "editcamera.password": "Password:",
+    "editcamera.retrieveprofiles": "Get Profiles",
+    "editcamera.profileuse": "Profile to use:",
+    "editcamera.rtsp_manual": "RTSP (manual)",
+    "editcamera.connecting": "Connecting…",
+    "editcamera.error_getcapabilities": "GetCapabilities error:",
+    "editcamera.error_getprofiles": "GetProfiles error:",
+    "editcamera.profiles_loaded": "Profiles loaded."
 }

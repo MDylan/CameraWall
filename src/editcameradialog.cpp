@@ -10,14 +10,14 @@
 EditCameraDialog::EditCameraDialog(const Camera *existing, QWidget *parent)
     : QDialog(parent)
 {
-    setWindowTitle(existing ? "Kamera szerkesztése" : "Kamera hozzáadása");
+    setWindowTitle(existing ? Language::instance().t("editcamera.edit", "Kamera szerkesztése") : Language::instance().t("editcamera.add", "Kamera hozzáadása"));
     tabs = new QTabWidget(this);
 
     // RTSP tab
     QWidget *rtspTab = new QWidget;
     auto *rtForm = new QFormLayout(rtspTab);
     nameRtsp = new QLineEdit;
-    rtForm->addRow("Név:", nameRtsp);
+    rtForm->addRow(Language::instance().t("editcamera.name", "Név"), nameRtsp);
     urlRtsp = new QLineEdit;
     urlRtsp->setPlaceholderText("rtsp://user:pass@host:554/stream");
     rtForm->addRow("RTSP URL:", urlRtsp);
@@ -26,7 +26,7 @@ EditCameraDialog::EditCameraDialog(const Camera *existing, QWidget *parent)
     QWidget *onvifTab = new QWidget;
     auto *ovForm = new QFormLayout(onvifTab);
     nameOnvif = new QLineEdit;
-    ovForm->addRow("Név:", nameOnvif);
+    ovForm->addRow(Language::instance().t("editcamera.name", "Név:"), nameOnvif);
     ip = new QLineEdit;
     ip->setPlaceholderText("192.168.1.10");
     ovForm->addRow("IP:", ip);
@@ -35,19 +35,19 @@ EditCameraDialog::EditCameraDialog(const Camera *existing, QWidget *parent)
     port->setValue(80);
     ovForm->addRow("Port:", port);
     user = new QLineEdit;
-    ovForm->addRow("Felhasználó:", user);
+    ovForm->addRow(Language::instance().t("editcamera.username", "Felhasználó:"), user);
     pass = new QLineEdit;
     pass->setEchoMode(QLineEdit::Password);
-    ovForm->addRow("Jelszó:", pass);
-    QPushButton *btnFetch = new QPushButton("Profilok lekérése");
+    ovForm->addRow(Language::instance().t("editcamera.password", "Jelszó:"), pass);
+    QPushButton *btnFetch = new QPushButton(Language::instance().t("editcamera.retrieveprofiles", "Profilok lekérése"));
     ovForm->addRow(btnFetch);
     profileCombo = new QComboBox;
-    ovForm->addRow("Használandó profil:", profileCombo);
+    ovForm->addRow(Language::instance().t("editcamera.profileuse", "Használandó profil:"), profileCombo);
     info = new QLabel;
     info->setStyleSheet("color:#9fb2c8");
     ovForm->addRow(info);
 
-    tabs->addTab(rtspTab, "RTSP (kézi)");
+    tabs->addTab(rtspTab, Language::instance().t("editcamera.rtsp_manual", "RTSP (kézi)"));
     tabs->addTab(onvifTab, "ONVIF");
 
     auto *mainLay = new QVBoxLayout(this);
@@ -120,7 +120,7 @@ Camera EditCameraDialog::cameraResult() const
 
 void EditCameraDialog::fetchProfiles()
 {
-    info->setText("Kapcsolódás…");
+    info->setText(Language::instance().t("editcamera.connecting", "Kapcsolódás…"));
     info->repaint();
     QCoreApplication::processEvents();
     QUrl device(QString("http://%1:%2/onvif/device_service").arg(ip->text().trimmed()).arg(port->value()));
@@ -129,14 +129,14 @@ void EditCameraDialog::fetchProfiles()
     QUrl media;
     if (!cli.getCapabilities(device, user->text(), pass->text(), media, &err))
     {
-        info->setText("GetCapabilities hiba: " + err);
+        info->setText(Language::instance().t("editcamera.error_getcapabilities", "GetCapabilities hiba: ") + err);
         return;
     }
     lastMediaXAddr = media.toString();
     QList<OnvifProfile> profs;
     if (!cli.getProfiles(media, user->text(), pass->text(), profs, &err))
     {
-        info->setText("GetProfiles hiba: " + err);
+        info->setText(Language::instance().t("editcamera.error_getprofiles", "GetProfiles hiba: ") + err);
         return;
     }
     fetchedProfiles = profs;
@@ -167,5 +167,5 @@ void EditCameraDialog::fetchProfiles()
         }
     }
 
-    info->setText("Profilok betöltve.");
+    info->setText(Language::instance().t("editcamera.profiles_loaded", "Profilok betöltve."));
 }
