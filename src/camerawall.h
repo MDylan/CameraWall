@@ -80,6 +80,7 @@ private:
     // háttér
     QLabel *backgroundLabel{};  // +++
     QString backgroundPath{};   // +++
+    bool backgroundCleared = false;
     QString backgroundFromIni{};   // +++
     QPixmap backgroundPixmap{}; // +++
     // rács oldal

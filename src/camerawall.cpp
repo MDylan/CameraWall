@@ -703,8 +703,29 @@ void CameraWall::loadFromIni()
     m_autoRotate = s.value("autoRotate", true).toBool();
     m_keepBackgroundStreams = s.value("keepAlive", true).toBool();
     backgroundFromIni = s.value("backgroundPath").toString();
+    backgroundCleared = s.value("backgroundCleared", false).toBool();
     qDebug() << "[loadFromIni] backgroundPath=" << backgroundFromIni;
-    applyBackgroundImage(backgroundFromIni); // ez kezeli a nem létező fájlt is
+
+    if (backgroundFromIni.isEmpty() && !backgroundCleared)
+    {
+        const QString exeDir = QCoreApplication::applicationDirPath();
+        const QString defaultBg = QDir(exeDir).filePath("background.png");
+        if (QFile::exists(defaultBg))
+        {
+            backgroundFromIni = defaultBg;
+        }
+    }
+
+    if (!backgroundFromIni.isEmpty() && QFile::exists(backgroundFromIni))
+    {
+        applyBackgroundImage(backgroundFromIni);
+    }
+    else
+    {
+        applyBackgroundImage(QString()); // üres háttér
+    }
+
+    //applyBackgroundImage(backgroundFromIni); // ez kezeli a nem létező fájlt is
     s.endGroup();
 }
 
@@ -748,6 +769,7 @@ void CameraWall::saveViewToIni()
     s.setValue("autoRotate", m_autoRotate);
     s.setValue("keepAlive", m_keepBackgroundStreams);
     s.setValue("backgroundPath", backgroundPath);
+    s.setValue("backgroundCleared", backgroundCleared);
     s.endGroup();
     s.sync();
 }
@@ -957,6 +979,7 @@ void CameraWall::chooseBackgroundImage()
         return;
 
     qDebug() << "[chooseBackgroundImage] file=" << file;
+    backgroundCleared = false;
     applyBackgroundImage(file);
     saveViewToIni();
 }
@@ -1006,6 +1029,8 @@ void CameraWall::updateBackgroundVisible()
 
 void CameraWall::clearBackgroundImage()
 {
+    backgroundPath.clear();
+    backgroundCleared = true;
     applyBackgroundImage(QString());
     saveViewToIni();
 
