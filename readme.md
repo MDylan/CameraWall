@@ -1,11 +1,11 @@
 # CameraWall
 
 A lightweight, desktop IP camera wall built with Qt 6.  
-Show multiple RTSP/ONVIF cameras in a 2×2 or 3×3 grid, pop any tile to a full view, and get automatic reconnects and clear status feedback.
+Show multiple RTSP/ONVIF cameras in a 2×2 / 3x2 / 3×3 grid, pop any tile to a full view, and get automatic reconnects and clear status feedback.
 
 ## Highlights
 
-- **Grid view**: 2×2 or 3×3 pages; auto-rotate pages every 10 seconds when you have more cameras than fit.
+- **Grid view**: 2×2 / 3x2 / 3×3 pages; auto-rotate pages every 10 seconds when you have more cameras than fit.
 - **Focus view**: Double-click a tile (or use the ⛶ button) to zoom to full view.  
   Press **Esc** to return to the grid. Use **← / →** to switch the focused camera (wrap-around).
 - **Automatic reconnect**: If a stream stalls or errors, the app waits **5 seconds** and retries cleanly (stop → play).  
