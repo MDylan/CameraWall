@@ -523,6 +523,12 @@ void CameraWall::enterFocus(int camIdx)
     focusCol = cFound;
 
     stack->setCurrentWidget(pageFocus);
+
+    // Súgó a fókusz nézethez
+    statusBar()->showMessage(
+        Language::instance().t(
+            "status.focus",
+            "ESC – vissza a rácshoz • ←/→ lapozás"));
 }
 
 void CameraWall::exitFocus()
@@ -532,6 +538,12 @@ void CameraWall::exitFocus()
         stack->setCurrentWidget(pageGrid);
         return;
     }
+
+    // Általános súgó visszaállítása
+    statusBar()->showMessage(
+        Language::instance().t(
+            "status.hint",
+            "F11 – teljes képernyő • Duplakatt/⛶: fókusz • Egy stream mód"));
 
     // tedd vissza
     focusLayout->removeWidget(focusTile);

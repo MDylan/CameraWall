@@ -20,6 +20,7 @@
     "menu.zoom": "Zoom IN/OUT",
     "msg.exit.confirm": "Are you sure to exit the program?",
     "status.hint": "F11 – fullscreen • Double-click/⛶: focus • Stream: as configured",
+    "status.focus": "ESC – back to grid • ←/→ to browse",
     "status.selected": "Selected",
     "status.cams": "Cameras",
     "status.rotate": "10s rotate",

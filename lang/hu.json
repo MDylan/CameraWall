@@ -20,6 +20,7 @@
     "menu.zoom": "Nagyítás KI/BE",
     "msg.exit.confirm": "Biztosan bezárjuk az alkalmazást?",
     "status.hint": "F11 – teljes képernyő • Duplakatt/⛶: fókusz • Stream: beállítás szerint",
+    "status.focus": "ESC – vissza a rácshoz • ←/→ lapozás",
     "status.selected": "Kijelölt",
     "status.cams": "Kamerák",
     "status.rotate": "10s váltás",
