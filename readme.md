@@ -21,11 +21,19 @@ Show multiple RTSP/ONVIF cameras in a 2×2 / 3x2 / 3×3 grid, pop any tile to a 
   - Use **ONVIF** discovery (with cached stream URI support).
 - **Noise-free logs**: Optional filtering of FFmpeg logs (see below).
 
+## Screenshots
+
+ - [Empty Main window](res/screenshots/01_main_window.jpg)
+ - [Add new camera](res/screenshots/02_add_camera.jpg)
+ - [Add new ONVIF camera](res/screenshots/03_add_camera.jpg)
+ - [Get ONVIF stream profile](res/screenshots/04_get_camera_profile.jpg)
+ - [Example camera added](res/screenshots/05_camera_added.jpg)
+
 ## Command Line options
 
 - **Language selection**: --lang=hu|en
-- **Screen selection**: --screen=1|2 ...
-- **Debugging**: --debug
+- **Screen selection**: --screen=1|2 etc.
+- **Debugging**: --debug (It will create a .log file into the program folder)
 
 ## Controls & Shortcuts
 
