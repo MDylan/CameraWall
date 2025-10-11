@@ -164,12 +164,7 @@ CameraWall::CameraWall()
     // beállítások
     loadFromIni();
     // jelöld ki a megfelelő rácsot
-    if (gridRows == 2 && gridCols == 2)
-        actGrid22->setChecked(true);
-    else if (gridRows == 3 && gridCols == 3)
-        actGrid33->setChecked(true);
-    else if (gridRows == 3 && gridCols == 2)
-        actGrid32->setChecked(true);
+    updateGridChecks();
     actFps->setChecked(m_limitFps15);
     actAutoRotate->setChecked(m_autoRotate);
     actKeepAlive->setChecked(m_keepBackgroundStreams);
@@ -644,6 +639,7 @@ void CameraWall::rebuildTiles()
             .arg(gridCols)
             .arg(gridRows)
             .arg(m_limitFps15 ? "15" : "max"));
+    updateGridChecks();
 }
 
 void CameraWall::loadFromIni()
@@ -914,4 +910,15 @@ void CameraWall::focusShow(int camIdx)
 
     qDebug() << "[focusShow] updated m_focusCamIdx =" << m_focusCamIdx
              << " focusRow=" << focusRow << " focusCol=" << focusCol;
+}
+
+void CameraWall::updateGridChecks()
+{
+    // Első számjegy = oszlopok, második = sorok
+    if (actGrid22)
+        actGrid22->setChecked(gridCols == 2 && gridRows == 2);
+    if (actGrid33)
+        actGrid33->setChecked(gridCols == 3 && gridRows == 3);
+    if (actGrid32)
+        actGrid32->setChecked(gridCols == 3 && gridRows == 2); // 3 oszlop × 2 sor
 }

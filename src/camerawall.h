@@ -61,6 +61,7 @@ private:
     // nyelvi címkék
     void retitle();
     void focusShow(int camIdx);
+    void updateGridChecks();
 
 private:
     // --- központi stack: 0 = rács, 1 = fókusz ---
