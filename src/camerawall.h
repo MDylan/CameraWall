@@ -10,7 +10,7 @@
 #include <QSettings>
 #include <QtMultimedia/QMediaPlayer>
 #include <QtMultimedia/QVideoSink>
-#include <QShortcut> // + ESC gyorsbillentyűhöz
+#include <QShortcut>
 
 #include "videotile.h"
 #include "editcameradialog.h" // Camera struct itt van
@@ -26,7 +26,7 @@ public:
 
 protected:
     void contextMenuEvent(QContextMenuEvent *e) override;
-    void keyPressEvent(QKeyEvent *e) override; // + ESC kezelés fallbackként
+    void keyPressEvent(QKeyEvent *e) override;
 
 private slots:
     // menü / működés
@@ -39,15 +39,15 @@ private slots:
     void toggleFpsLimit();
     void toggleAutoRotate();
     void toggleKeepAlive();
-    void onTileFullscreenRequested(); // tagfüggvény slot – UniqueConnection elkerüléséhez
+    void onTileFullscreenRequested(); // tagfüggvény slot
     void nextPage();
     void reloadAll();
 
 private:
     // layout / nézet
-    int perPage() const { return gridN * gridN; }
+    int perPage() const { return gridRows * gridCols; }
     void applyGridStretch();
-    void setGridN(int n);
+    void setGridN(int rc); // rc = rows*10 + cols, pl. 22, 33, 32
     void rebuildTiles();
     void enterFocus(int camIdx);
     void exitFocus();
@@ -58,9 +58,9 @@ private:
     void saveCamerasToIni();
     void saveViewToIni();
 
-    // nyelvi címkék újrarakása
+    // nyelvi címkék
     void retitle();
-    void focusShow(int camIdx); // fókuszban lévő csempe lecserélése bal/jobb lapozásnál
+    void focusShow(int camIdx);
 
 private:
     // --- központi stack: 0 = rács, 1 = fókusz ---
@@ -81,7 +81,11 @@ private:
     int selectedIndex{-1};
     int currentPage{0};
     QTimer rotateTimer;
-    int gridN{2};
+
+    // ÚJ: téglalap rács
+    int gridRows{2};
+    int gridCols{2};
+
     bool m_limitFps15{true};
     bool m_autoRotate{true};
     bool m_keepBackgroundStreams{true};
@@ -92,7 +96,8 @@ private:
     int focusRow{-1}, focusCol{-1};
 
     // menük
-    QAction *actFps{}, *actFull{}, *actEdit{}, *actKeepAlive{}, *actAutoRotate{}, *actGrid2{}, *actGrid3{}, *actReorder{};
+    QAction *actFps{}, *actFull{}, *actEdit{}, *actKeepAlive{}, *actAutoRotate{},
+        *actGrid22{}, *actGrid33{}, *actGrid32{}, *actReorder{};
     QAction *actLangHu{}, *actLangEn{};
 
     QMenu *mCams{}, *mView{}, *mHelp{}, *menuLanguage{}, *mGridMenu{};

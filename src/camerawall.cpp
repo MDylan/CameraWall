@@ -25,10 +25,9 @@ namespace
 CameraWall::CameraWall()
 {
     setWindowIcon(loadAppIcon());
-    // setWindowTitle(Language::instance().t("app.title", "IP Kamera fal"));
     updateAppTitle();
 
-    // --- központi stackelt nézet ---
+    // --- központi stack ---
     central = new QWidget(this);
     setCentralWidget(central);
     stack = new QStackedLayout(central);
@@ -50,14 +49,14 @@ CameraWall::CameraWall()
     focusLayout->setSpacing(0);
     stack->addWidget(pageFocus);
 
-    // --- ESC gyorsbillentyű a fókuszból kilépéshez ---
+    // ESC gyorsbillentyű
     shortcutEsc = new QShortcut(QKeySequence(Qt::Key_Escape), this);
     connect(shortcutEsc, &QShortcut::activated, this, [this]
             {
         if (stack && stack->currentWidget() == pageFocus)
             exitFocus(); });
 
-    // --- Menü (persistens pointerek) ---
+    // --- Menü ---
     mCams = new QMenu(this);
     menuBar()->addMenu(mCams);
 
@@ -71,11 +70,9 @@ CameraWall::CameraWall()
     mCams->addSeparator();
     actExit = mCams->addAction({}, this, [this]
                                {
-    if (Util::askOkCancel(this,
-                          "dlg.exit", "Kilépés",
-                          "msg.exit", "Biztosan kilépsz az alkalmazásból?")) {
-        qApp->quit();
-    } });
+        if (Util::askOkCancel(this,"dlg.exit","Kilépés","msg.exit","Biztosan kilépsz az alkalmazásból?")) {
+            qApp->quit();
+        } });
 
     mView = new QMenu(this);
     menuBar()->addMenu(mView);
@@ -89,26 +86,30 @@ CameraWall::CameraWall()
     actKeepAlive = mView->addAction({}, this, &CameraWall::toggleKeepAlive);
     actKeepAlive->setCheckable(true);
 
+    // Grid menü (ÚJ: 3×2 is)
     mGridMenu = new QMenu(mView);
     mView->addMenu(mGridMenu);
 
     gridGroup = new QActionGroup(mGridMenu);
     gridGroup->setExclusive(true);
-    actGrid2 = mGridMenu->addAction("2×2");
-    actGrid3 = mGridMenu->addAction("3×3");
-    actGrid2->setCheckable(true);
-    actGrid3->setCheckable(true);
-    gridGroup->addAction(actGrid2);
-    gridGroup->addAction(actGrid3);
-    connect(actGrid2, &QAction::triggered, this, [this]
-            { setGridN(2); });
-    connect(actGrid3, &QAction::triggered, this, [this]
-            { setGridN(3); });
+    actGrid22 = mGridMenu->addAction("2×2");
+    actGrid33 = mGridMenu->addAction("3×3");
+    actGrid32 = mGridMenu->addAction("3×2");
+    for (auto *a : {actGrid22, actGrid33, actGrid32})
+        a->setCheckable(true);
+    gridGroup->addAction(actGrid22);
+    gridGroup->addAction(actGrid33);
+    gridGroup->addAction(actGrid32);
+    connect(actGrid22, &QAction::triggered, this, [this]
+            { setGridN(22); });
+    connect(actGrid33, &QAction::triggered, this, [this]
+            { setGridN(33); });
+    connect(actGrid32, &QAction::triggered, this, [this]
+            { setGridN(32); });
 
-    // <<< TÁROLT "Súgó" menü
+    // Súgó + Nyelv (változatlan)
     mHelp = new QMenu(this);
     menuBar()->addMenu(mHelp);
-
     menuLanguage = new QMenu(mHelp);
     mHelp->addMenu(menuLanguage);
     langGroup = new QActionGroup(menuLanguage);
@@ -119,43 +120,36 @@ CameraWall::CameraWall()
     actLangEn->setCheckable(true);
     langGroup->addAction(actLangHu);
     langGroup->addAction(actLangEn);
-
     connect(actLangHu, &QAction::triggered, this, [this]
-            {
-        if (Language::instance().load("hu")) updateMenuTexts(); });
+            { if (Language::instance().load("hu")) updateMenuTexts(); });
     connect(actLangEn, &QAction::triggered, this, [this]
-            {
-        if (Language::instance().load("en")) updateMenuTexts(); });
+            { if (Language::instance().load("en")) updateMenuTexts(); });
 
-    // <<< TÁROLT "Rólunk" akció
     actAbout = mHelp->addAction({}, this, [this]
                                 {
-    const QIcon appIcon = loadAppIcon();
-    QPixmap pm = appIcon.pixmap(64, 64);
+        const QIcon appIcon = loadAppIcon();
+        QPixmap pm = appIcon.pixmap(64, 64);
+        auto *box = new QMessageBox(this);
+        box->setWindowIcon(appIcon);
+        box->setIconPixmap(pm);
+        box->setWindowTitle(Language::instance().t("dlg.about", "Rólunk"));
+        box->setTextFormat(Qt::RichText);
+        box->setTextInteractionFlags(Qt::TextBrowserInteraction | Qt::LinksAccessibleByKeyboard);
+        box->setText(
+            "CameraWall<br>"
+            "Just a simple IP camera software. Enjoy! :)<br>"
+            "Created by: Dávid Molnár<br>"
+            "<a href=\"https://github.com/MDylan/CameraWall\">github.com/MDylan/CameraWall</a><br>"
+            "<br>© 2025");
+        box->setStandardButtons(QMessageBox::Ok);
+        box->exec(); });
 
-    auto *box = new QMessageBox(this);
-    box->setWindowIcon(appIcon);
-    box->setIconPixmap(pm);
-    box->setWindowTitle(Language::instance().t("dlg.about", "Rólunk"));
-    box->setTextFormat(Qt::RichText);
-    box->setTextInteractionFlags(Qt::TextBrowserInteraction | Qt::LinksAccessibleByKeyboard);
-    box->setText(
-        "CameraWall<br>"
-        "Just a simple IP camera software. Enjoy! :)<br>"
-        "Created by: Dávid Molnár<br>"
-        "<a href=\"https://github.com/MDylan/CameraWall\">github.com/MDylan/CameraWall</a><br>"
-        "<br>© 2025");
-    box->setStandardButtons(QMessageBox::Ok);
-    box->exec(); });
-
-    // kezdeti szövegek
     updateMenuTexts();
 
     statusBar()->showMessage(Language::instance().t(
         "status.hint",
         "F11 – teljes képernyő • Duplakatt/⛶: fókusz • Egy stream mód"));
 
-    // Nyelvjelzéskor feliratfrissítés
     connect(&Language::instance(), &Language::languageChanged, this, [this](const QString &)
             {
         updateMenuTexts();
@@ -164,14 +158,18 @@ CameraWall::CameraWall()
             "status.hint",
             "F11 – teljes képernyő • Duplakatt/⛶: fókusz • Egy stream mód")); });
 
-    // időzítő
     connect(&rotateTimer, &QTimer::timeout, this, &CameraWall::nextPage);
     rotateTimer.setInterval(10000);
 
-    // beállítások betöltése
+    // beállítások
     loadFromIni();
-    actGrid2->setChecked(gridN == 2);
-    actGrid3->setChecked(gridN == 3);
+    // jelöld ki a megfelelő rácsot
+    if (gridRows == 2 && gridCols == 2)
+        actGrid22->setChecked(true);
+    else if (gridRows == 3 && gridCols == 3)
+        actGrid33->setChecked(true);
+    else if (gridRows == 3 && gridCols == 2)
+        actGrid32->setChecked(true);
     actFps->setChecked(m_limitFps15);
     actAutoRotate->setChecked(m_autoRotate);
     actKeepAlive->setChecked(m_keepBackgroundStreams);
@@ -221,8 +219,9 @@ void CameraWall::contextMenuEvent(QContextMenuEvent *e)
     menu.addSeparator();
     menu.addAction(Language::instance().t("menu.fullscreen", "Teljes képernyő (ablak)"), this, &CameraWall::toggleFullscreen);
     QMenu *sub = menu.addMenu(Language::instance().t("menu.grid", "Rács"));
-    sub->addAction(actGrid2);
-    sub->addAction(actGrid3);
+    sub->addAction(actGrid22);
+    sub->addAction(actGrid32);
+    sub->addAction(actGrid33);    
     menu.addAction(Language::instance().t("menu.reorder", "Kamerák sorrendje…"), this, &CameraWall::onReorder);
     menu.exec(e->globalPos());
 }
@@ -231,7 +230,6 @@ void CameraWall::contextMenuEvent(QContextMenuEvent *e)
 void CameraWall::keyPressEvent(QKeyEvent *e)
 {
     qDebug() << "[keyPressEvent]" << e->key();
-    qDebug() << "[keyPressEvent] pageFocus = " << pageFocus;
     if (stack && stack->currentWidget() == pageFocus)
     {
         if (e->key() == Qt::Key_Escape)
@@ -260,17 +258,23 @@ void CameraWall::applyGridStretch()
         grid->setRowStretch(r, 0);
     for (int c = 0; c < 9; ++c)
         grid->setColumnStretch(c, 0);
-    for (int r = 0; r < gridN; ++r)
+    for (int r = 0; r < gridRows; ++r)
         grid->setRowStretch(r, 1);
-    for (int c = 0; c < gridN; ++c)
+    for (int c = 0; c < gridCols; ++c)
         grid->setColumnStretch(c, 1);
 }
 
-void CameraWall::setGridN(int n)
+void CameraWall::setGridN(int rc)
 {
-    if (n != 2 && n != 3)
+    // rc = C*10 + R  (C = columns, R = rows), pl. 32 -> 3 oszlop × 2 sor
+    int cols = rc / 10;
+    int rows = rc % 10;
+    if (rows <= 0 || cols <= 0 || rows > 9 || cols > 9)
         return;
-    gridN = n;
+
+    gridCols = cols;
+    gridRows = rows;
+
     saveViewToIni();
     rebuildTiles();
 }
@@ -606,25 +610,20 @@ void CameraWall::rebuildTiles()
         tile->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         tiles << tile;
 
-        const int r = shown / gridN;
-        const int c = shown % gridN;
+        // FONTOS: téglalap rácshoz a sor = shown / gridCols, oszlop = shown % gridCols
+        const int r = shown / gridCols;
+        const int c = shown % gridCols;
         grid->addWidget(tile, r, c);
         tile->setName(cams[i].name);
 
         QString err;
         QUrl play = playbackUrlFor(i, false, &err);
         if (play.isEmpty())
-        {
             tile->setToolTip(err);
-        }
         else
-        {
             tile->playUrl(play);
-        }
 
-        // fontos: tagfüggvényre kötjük
         connect(tile, &VideoTile::fullscreenRequested, this, &CameraWall::onTileFullscreenRequested);
-
         tileIndexMap[tile] = i;
         shown++;
     }
@@ -634,7 +633,7 @@ void CameraWall::rebuildTiles()
 
     const int pagesCount = qMax(1, (cams.size() + perPage() - 1) / perPage());
     statusBar()->showMessage(
-        QString("%1: %2 • %3/%4 • %5 • %6 %7×%7 • FPS: %8")
+        QString("%1: %2 • %3/%4 • %5 • %6 %7×%8 • FPS: %9")
             .arg(Language::instance().t("status.cams", "Kamerák"))
             .arg(cams.size())
             .arg(currentPage + 1)
@@ -642,7 +641,8 @@ void CameraWall::rebuildTiles()
             .arg(cams.size() > perPage() ? Language::instance().t("status.rotate", "10s váltás")
                                          : Language::instance().t("status.allvisible", "minden látható"))
             .arg(Language::instance().t("status.grid", "Rács:"))
-            .arg(gridN)
+            .arg(gridCols)
+            .arg(gridRows)
             .arg(m_limitFps15 ? "15" : "max"));
 }
 
@@ -650,7 +650,7 @@ void CameraWall::loadFromIni()
 {
     QSettings s(Util::iniPath(), QSettings::IniFormat);
 
-    // Cameras
+    // Cameras (változatlan)
     cams.clear();
     s.beginGroup("Cameras");
     int count = s.value("count", 0).toInt();
@@ -680,9 +680,18 @@ void CameraWall::loadFromIni()
     }
     s.endGroup();
 
-    // View
+    // View – ÚJ: gridRC (egy számként, pl. 32)
     s.beginGroup("View");
-    gridN = s.value("gridN", 2).toInt();
+    const int rc = s.value("gridN", 22).toInt(); // visszafelé kompatibilitás: ugyanaz a kulcs
+    int cols = rc / 10;
+    int rows = rc % 10;
+    if (cols <= 0)
+        cols = 2;
+    if (rows <= 0)
+        rows = 2;
+    gridCols = cols;
+    gridRows = rows;
+
     m_limitFps15 = s.value("fpsLimit15", true).toBool();
     m_autoRotate = s.value("autoRotate", true).toBool();
     m_keepBackgroundStreams = s.value("keepAlive", true).toBool();
@@ -724,7 +733,7 @@ void CameraWall::saveViewToIni()
 {
     QSettings s(Util::iniPath(), QSettings::IniFormat);
     s.beginGroup("View");
-    s.setValue("gridN", gridN);
+    s.setValue("gridN", gridCols * 10 + gridRows); // pl. 32 = 3 oszlop × 2 sor
     s.setValue("fpsLimit15", m_limitFps15);
     s.setValue("autoRotate", m_autoRotate);
     s.setValue("keepAlive", m_keepBackgroundStreams);
