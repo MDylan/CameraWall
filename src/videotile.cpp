@@ -86,7 +86,7 @@ void VideoTile::rebuildUi()
 void VideoTile::updateTranslations()
 {
     if (m_zoomBtn)
-        m_zoomBtn->setToolTip(Language::instance().t("menu.zoom", "Teljes nézet"));
+        m_zoomBtn->setToolTip(Language::instance().t("menu.zoom", "Zoom IN/OUT"));
 }
 
 void VideoTile::updateHudGeometry()
@@ -277,7 +277,7 @@ void VideoTile::paintEvent(QPaintEvent *)
     {
         p.fillRect(rect(), QColor(10, 12, 20));
         p.setPen(QColor("#5e6a7a"));
-        p.drawText(rect(), Qt::AlignCenter, Language::instance().t("status.noimage", "Nincs kép…"));
+        p.drawText(rect(), Qt::AlignCenter, Language::instance().t("status.noimage", "No Image…"));
         return;
     }
 

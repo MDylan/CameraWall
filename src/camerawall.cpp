@@ -143,7 +143,7 @@ CameraWall::CameraWall()
         auto *box = new QMessageBox(this);
         box->setWindowIcon(appIcon);
         box->setIconPixmap(pm);
-        box->setWindowTitle(Language::instance().t("dlg.about", "Rólunk"));
+        box->setWindowTitle(Language::instance().t("menu.about", "About"));
         box->setTextFormat(Qt::RichText);
         box->setTextInteractionFlags(Qt::TextBrowserInteraction | Qt::LinksAccessibleByKeyboard);
         box->setText(
@@ -159,7 +159,7 @@ CameraWall::CameraWall()
 
     statusBar()->showMessage(Language::instance().t(
         "status.hint",
-        "F11 – teljes képernyő • Duplakatt/⛶: fókusz • Egy stream mód"));
+        "F11 – fullscreen • Double-click/⛶: focus • Stream: as configured"));
 
     connect(&Language::instance(), &Language::languageChanged, this, [this](const QString &)
             {
@@ -167,7 +167,7 @@ CameraWall::CameraWall()
         updateAppTitle();
         statusBar()->showMessage(Language::instance().t(
             "status.hint",
-            "F11 – teljes képernyő • Duplakatt/⛶: fókusz • Egy stream mód")); });
+            "F11 – fullscreen • Double-click/⛶: focus • Stream: as configured")); });
 
     connect(&rotateTimer, &QTimer::timeout, this, &CameraWall::nextPage);
     rotateTimer.setInterval(10000);
@@ -210,25 +210,25 @@ void CameraWall::contextMenuEvent(QContextMenuEvent *e)
     const int ctxIdx = vt ? tileIndexMap.value(vt, -1) : -1;
 
     QMenu menu(this);
-    menu.addAction(Language::instance().t("menu.add", "Hozzáadás…"), this, &CameraWall::onAdd);
-    menu.addAction(Language::instance().t("menu.edit", "Szerkesztés…"),
+    menu.addAction(Language::instance().t("menu.add", "Add"), this, &CameraWall::onAdd);
+    menu.addAction(Language::instance().t("menu.edit", "Edit"),
                    this, [this, ctxIdx]
                    {
         if (ctxIdx >= 0) selectedIndex = ctxIdx;
         onEditSelected(); });
 
-    menu.addAction(Language::instance().t("menu.remove", "Kijelölt törlése"),
+    menu.addAction(Language::instance().t("menu.remove", "Remove selected"),
                    this, [this, ctxIdx]
                    {
         if (ctxIdx >= 0) selectedIndex = ctxIdx;
         onRemoveSelected(); });
     menu.addSeparator();
-    menu.addAction(Language::instance().t("menu.fullscreen", "Teljes képernyő (ablak)"), this, &CameraWall::toggleFullscreen);
-    QMenu *sub = menu.addMenu(Language::instance().t("menu.grid", "Rács"));
+    menu.addAction(Language::instance().t("menu.fullscreen", "Fullscreen (window)"), this, &CameraWall::toggleFullscreen);
+    QMenu *sub = menu.addMenu(Language::instance().t("menu.grid", "Grid"));
     sub->addAction(actGrid22);
     sub->addAction(actGrid32);
-    sub->addAction(actGrid33);    
-    menu.addAction(Language::instance().t("menu.reorder", "Kamerák sorrendje…"), this, &CameraWall::onReorder);
+    sub->addAction(actGrid33);
+    menu.addAction(Language::instance().t("menu.reorder", "Reorder cameras…"), this, &CameraWall::onReorder);
     menu.exec(e->globalPos());
 }
 
@@ -301,8 +301,8 @@ void CameraWall::onEditSelected()
     qDebug() << "Edit selected:" << selectedIndex;
     if (selectedIndex < 0 || selectedIndex >= cams.size())
     {
-        QMessageBox::information(this, Language::instance().t("dlg.edit", "Szerkesztés"),
-                                 Language::instance().t("msg.selectcam", "Jelölj ki egy kamerát (kattints a csempére)."));
+        QMessageBox::information(this, Language::instance().t("dlg.edit", "Edit"),
+                                 Language::instance().t("msg.selectcam", "Select a camera (click a tile)."));
         return;
     }
     Camera cur = cams[selectedIndex];
@@ -319,8 +319,8 @@ void CameraWall::onRemoveSelected()
 {
     if (selectedIndex < 0 || selectedIndex >= cams.size())
         return;
-    if (QMessageBox::question(this, Language::instance().t("dlg.delete", "Törlés"),
-                              Language::instance().t("msg.delete", "Biztosan törlöd a kijelölt kamerát?")) == QMessageBox::Yes)
+    if (QMessageBox::question(this, Language::instance().t("dlg.delete", "Delete"),
+                              Language::instance().t("msg.delete", "Are you sure to delete the selected camera?")) == QMessageBox::Yes)
     {
         cams.removeAt(selectedIndex);
         selectedIndex = -1;
@@ -331,8 +331,8 @@ void CameraWall::onRemoveSelected()
 
 void CameraWall::onClearAll()
 {
-    if (QMessageBox::question(this, Language::instance().t("dlg.clearall", "Összes törlése"),
-                              Language::instance().t("msg.clearall", "Biztosan törlöd az összes kamerát?")) == QMessageBox::Yes)
+    if (QMessageBox::question(this, Language::instance().t("dlg.clearall", "Clear all"),
+                              Language::instance().t("msg.clearall", "Are you sure to delete all cameras?")) == QMessageBox::Yes)
     {
         cams.clear();
         selectedIndex = -1;
@@ -539,7 +539,7 @@ void CameraWall::enterFocus(int camIdx)
     statusBar()->showMessage(
         Language::instance().t(
             "status.focus",
-            "ESC – vissza a rácshoz • ←/→ lapozás"));
+            "ESC – back to grid • ←/→ to browse"));
 }
 
 void CameraWall::exitFocus()
@@ -554,7 +554,7 @@ void CameraWall::exitFocus()
     statusBar()->showMessage(
         Language::instance().t(
             "status.hint",
-            "F11 – teljes képernyő • Duplakatt/⛶: fókusz • Egy stream mód"));
+            "F11 – fullscreen • Double-click/⛶: focus • Stream: as configured"));
 
     // tedd vissza
     focusLayout->removeWidget(focusTile);
@@ -600,11 +600,11 @@ void CameraWall::rebuildTiles()
 
     if (cams.isEmpty())
     {
-        auto *lbl = new QLabel(Language::instance().t("msg.nocams", "Nincs konfigurált kamera. Jobb klikk → Hozzáadás…"));
+        auto *lbl = new QLabel(Language::instance().t("msg.nocams", "No cameras configured. Right click → Add…"));
         lbl->setAlignment(Qt::AlignCenter);
         lbl->setStyleSheet("color:#9fb2c8; font-size:18px");
         grid->addWidget(lbl, 0, 0, 1, 1);
-        statusBar()->showMessage(Language::instance().t("status.count0", "0 kamera"));
+        statusBar()->showMessage(Language::instance().t("status.count0", "0 camera"));
         rotateTimer.stop();
         stack->setCurrentWidget(pageGrid);
         return;
@@ -652,13 +652,13 @@ void CameraWall::rebuildTiles()
     const int pagesCount = qMax(1, (cams.size() + perPage() - 1) / perPage());
     statusBar()->showMessage(
         QString("%1: %2 • %3/%4 • %5 • %6 %7×%8 • FPS: %9")
-            .arg(Language::instance().t("status.cams", "Kamerák"))
+            .arg(Language::instance().t("status.cams", "Cameras"))
             .arg(cams.size())
             .arg(currentPage + 1)
             .arg(pagesCount)
-            .arg(cams.size() > perPage() ? Language::instance().t("status.rotate", "10s váltás")
-                                         : Language::instance().t("status.allvisible", "minden látható"))
-            .arg(Language::instance().t("status.grid", "Rács:"))
+            .arg(cams.size() > perPage() ? Language::instance().t("status.rotate", "10s rotate")
+                                         : Language::instance().t("status.allvisible", "all visible"))
+            .arg(Language::instance().t("status.grid", "Grid:"))
             .arg(gridCols)
             .arg(gridRows)
             .arg(m_limitFps15 ? "15" : "max"));
@@ -773,54 +773,54 @@ void CameraWall::updateMenuTexts()
 {
     // fő menük
     if (mCams)
-        mCams->setTitle(Language::instance().t("menu.cameras", "&Kamerák"));
+        mCams->setTitle(Language::instance().t("menu.cameras", "Cameras"));
     if (mView)
-        mView->setTitle(Language::instance().t("menu.view", "&Nézet"));
+        mView->setTitle(Language::instance().t("menu.view", "View"));
     if (mHelp)
-        mHelp->setTitle(Language::instance().t("menu.help", "Súgó"));
+        mHelp->setTitle(Language::instance().t("menu.help", "Help"));
     if (mGridMenu)
-        mGridMenu->setTitle(Language::instance().t("menu.grid", "Rács"));
+        mGridMenu->setTitle(Language::instance().t("menu.grid", "Grid"));
     if (menuLanguage)
-        menuLanguage->setTitle(Language::instance().t("menu.language", "Nyelv"));
+        menuLanguage->setTitle(Language::instance().t("menu.language", "Language"));
 
     // Kamerák menü akciók
     if (actAdd)
-        actAdd->setText(Language::instance().t("menu.add", "Hozzáadás…"));
+        actAdd->setText(Language::instance().t("menu.add", "Add…"));
     if (actEdit)
-        actEdit->setText(Language::instance().t("menu.edit", "Szerkesztés…"));
+        actEdit->setText(Language::instance().t("menu.edit", "Edit…"));
     if (actRemove)
-        actRemove->setText(Language::instance().t("menu.remove", "Kijelölt törlése"));
+        actRemove->setText(Language::instance().t("menu.remove", "Remove selected"));
     if (actClear)
-        actClear->setText(Language::instance().t("menu.clearall", "Összes törlése"));
+        actClear->setText(Language::instance().t("menu.clearall", "Clear all"));
     if (actReorder)
-        actReorder->setText(Language::instance().t("menu.reorder", "Kamerák sorrendje…"));
+        actReorder->setText(Language::instance().t("menu.reorder", "Reorder cameras…"));
     if (actReload)
-        actReload->setText(Language::instance().t("menu.reload", "Újratöltés"));
+        actReload->setText(Language::instance().t("menu.reload", "Reload"));
     if (actExit)
-        actExit->setText(Language::instance().t("menu.exit", "Kilépés"));
+        actExit->setText(Language::instance().t("menu.exit", "Exit"));
 
     // Nézet menü akciók
     if (actFull)
-        actFull->setText(Language::instance().t("menu.fullscreen", "Teljes képernyő (ablak)"));
+        actFull->setText(Language::instance().t("menu.fullscreen", "Fullscreen (window)"));
     if (actFps)
         actFps->setText(Language::instance().t("menu.fpslimit", "FPS limit 15"));
     if (actAutoRotate)
-        actAutoRotate->setText(Language::instance().t("menu.autorotate", "10 mp-es váltás"));
+        actAutoRotate->setText(Language::instance().t("menu.autorotate", "Auto-rotate 10s"));
     if (actKeepAlive)
-        actKeepAlive->setText(Language::instance().t("menu.keepalive", "Háttér stream megtartása"));
+        actKeepAlive->setText(Language::instance().t("menu.keepalive", "Keep background stream"));
 
     // Súgó menü
     if (actAbout)
-        actAbout->setText(Language::instance().t("menu.about", "Rólunk"));
+        actAbout->setText(Language::instance().t("menu.about", "About"));
     if (actBackground)
-        actBackground->setText(Language::instance().t("menu.background", "Háttérkép beállítása"));
+        actBackground->setText(Language::instance().t("menu.background", "Set background image"));
     if (actBackgroundClear)
-        actBackgroundClear->setText(Language::instance().t("menu.background.clear", "Háttérkép törlése"));
+        actBackgroundClear->setText(Language::instance().t("menu.background.clear", "Clear background"));
 }
 
 void CameraWall::updateAppTitle()
 {
-    const QString title = Language::instance().t("app.title", "IP Kamera fal");
+    const QString title = Language::instance().t("app.title", "IP Camera Wall");
     setWindowTitle(title);
     QApplication::setApplicationDisplayName(title);
 }
@@ -955,7 +955,7 @@ void CameraWall::updateGridChecks()
 }
 void CameraWall::chooseBackgroundImage()
 {
-    const QString title = Language::instance().t("dlg.bg.title", "Válassz háttérképet");
+    const QString title = Language::instance().t("dlg.bg.title", "Choose a background image");
     const QString filter = Language::instance().t("dlg.bg.filter", "Images (*.png *.jpg *.jpeg *.bmp *.gif);;All files (*.*)");
 
     QString startDir;
@@ -1023,6 +1023,6 @@ void CameraWall::clearBackgroundImage()
     saveViewToIni();
     statusBar()->showMessage(Language::instance().t(
                                  "status.bg.cleared",
-                                 "Háttérkép eltávolítva"),
+                                 "Background image cleared"),
                              3000);
 }

@@ -37,5 +37,5 @@ private:
     void loadChoiceFromIni();               // ini-ből visszatöltés
 
     QHash<QString, QString> m_map;
-    QString m_code{"hu"};
+    QString m_code{"en"};
 };

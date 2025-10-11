@@ -52,7 +52,7 @@ int main(int argc, char **argv)
     app.setWindowIcon(QIcon(":/icons/app.ico"));
     Language::instance().loadFromArgs(app);
     QApplication::setApplicationDisplayName(
-        Language::instance().t("app.title", "IP Kamera fal"));
+        Language::instance().t("app.title", "IP Camera Wall"));
 
     // --- ini fájl (exe mellett) ---
     const QString iniPath = QCoreApplication::applicationDirPath() + "/CameraWall.ini";

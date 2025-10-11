@@ -39,17 +39,17 @@ bool Language::load(const QString &code)
 {
     qDebug() << "load " << code;
     qDebug() << "QRC list :/lang =" << QDir(":/lang").entryList();
-    qDebug() << "hu exists?" << QFileInfo::exists(":/lang/hu.json");
+    qDebug() << "en exists?" << QFileInfo::exists(":/lang/en.json");
     
     if (code.isEmpty())
         return false;
 
     // 1) resource
-    if (!loadFromResource(code))
+    if (!loadFromExecutableDir(code))
     {
         qDebug() << "loadFromResource nem talált ... ";
         // 2) exe melletti lang/XX.json
-        if (!loadFromExecutableDir(code))
+        if (!loadFromResource(code))
         {
             qDebug() << "loadFromExecutableDir nem talált ... ";
             // 3) current working dir (fejlesztéshez)

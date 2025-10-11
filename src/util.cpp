@@ -22,7 +22,7 @@ namespace Util
         if (auto *bOk = box.button(QMessageBox::Ok))
             bOk->setText(Language::instance().t("btn.ok", "OK"));
         if (auto *bCancel = box.button(QMessageBox::Cancel))
-            bCancel->setText(Language::instance().t("btn.cancel", "Mégse"));
+            bCancel->setText(Language::instance().t("btn.cancel", "Cancel"));
 
         return box.exec() == QMessageBox::Ok;
     }
