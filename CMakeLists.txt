@@ -95,3 +95,16 @@ if (WIN32)
   endif()
 endif()
 
+set(RUNTIME_DIR "${CMAKE_BINARY_DIR}/CameraWall")
+
+set_target_properties(CameraWall PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${RUNTIME_DIR}"
+)
+# --- background.png másolása az exe mellé ---
+add_custom_command(TARGET CameraWall POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${RUNTIME_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/res/background.png"
+            "${RUNTIME_DIR}/background.png"
+    COMMENT "Copy default background.png next to the executable"
+)
