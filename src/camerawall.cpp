@@ -34,6 +34,15 @@ CameraWall::CameraWall()
     stack->setContentsMargins(0, 0, 0, 0);
     stack->setStackingMode(QStackedLayout::StackAll);
 
+    // HÁTTÉR (legalul)
+    backgroundLabel = new QLabel(central);
+    backgroundLabel->setScaledContents(true);
+    backgroundLabel->setAlignment(Qt::AlignCenter);
+    backgroundLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    // ne fogja a kattintásokat, csak dísz
+    backgroundLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    stack->addWidget(backgroundLabel); // index 0
+
     // rács oldal
     pageGrid = new QWidget(central);
     grid = new QGridLayout(pageGrid);
@@ -112,6 +121,8 @@ CameraWall::CameraWall()
     menuBar()->addMenu(mHelp);
     menuLanguage = new QMenu(mHelp);
     mHelp->addMenu(menuLanguage);
+    actBackground = mHelp->addAction({}, this, &CameraWall::chooseBackgroundImage);
+    actBackgroundClear = mHelp->addAction({}, this, &CameraWall::clearBackgroundImage);
     langGroup = new QActionGroup(menuLanguage);
     langGroup->setExclusive(true);
     actLangHu = menuLanguage->addAction("Magyar");
@@ -703,6 +714,9 @@ void CameraWall::loadFromIni()
     m_limitFps15 = s.value("fpsLimit15", true).toBool();
     m_autoRotate = s.value("autoRotate", true).toBool();
     m_keepBackgroundStreams = s.value("keepAlive", true).toBool();
+    backgroundFromIni = s.value("backgroundPath").toString();
+    qDebug() << "[loadFromIni] backgroundPath=" << backgroundFromIni;
+    applyBackgroundImage(backgroundFromIni); // ez kezeli a nem létező fájlt is
     s.endGroup();
 }
 
@@ -745,6 +759,7 @@ void CameraWall::saveViewToIni()
     s.setValue("fpsLimit15", m_limitFps15);
     s.setValue("autoRotate", m_autoRotate);
     s.setValue("keepAlive", m_keepBackgroundStreams);
+    s.setValue("backgroundPath", backgroundPath);
     s.endGroup();
     s.sync();
 }
@@ -797,6 +812,10 @@ void CameraWall::updateMenuTexts()
     // Súgó menü
     if (actAbout)
         actAbout->setText(Language::instance().t("menu.about", "Rólunk"));
+    if (actBackground)
+        actBackground->setText(Language::instance().t("menu.background", "Háttérkép beállítása"));
+    if (actBackgroundClear)
+        actBackgroundClear->setText(Language::instance().t("menu.background.clear", "Háttérkép törlése"));
 }
 
 void CameraWall::updateAppTitle()
@@ -933,4 +952,77 @@ void CameraWall::updateGridChecks()
         actGrid33->setChecked(gridCols == 3 && gridRows == 3);
     if (actGrid32)
         actGrid32->setChecked(gridCols == 3 && gridRows == 2); // 3 oszlop × 2 sor
+}
+void CameraWall::chooseBackgroundImage()
+{
+    const QString title = Language::instance().t("dlg.bg.title", "Válassz háttérképet");
+    const QString filter = Language::instance().t("dlg.bg.filter", "Images (*.png *.jpg *.jpeg *.bmp *.gif);;All files (*.*)");
+
+    QString startDir;
+    if (!backgroundPath.isEmpty())
+        startDir = QFileInfo(backgroundPath).absolutePath();
+    else
+        startDir = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+
+    const QString file = QFileDialog::getOpenFileName(this, title, startDir, filter);
+    if (file.isEmpty())
+        return;
+
+    qDebug() << "[chooseBackgroundImage] file=" << file;
+    applyBackgroundImage(file);
+    saveViewToIni();
+}
+
+void CameraWall::applyBackgroundImage(const QString &path)
+{
+    qDebug() << "[applyBackgroundImage] path=" << backgroundPath;
+    backgroundPath.clear();
+    backgroundPixmap = QPixmap();
+
+    qDebug() << "[applyBackgroundImage] path=" << path;
+
+    if (!path.isEmpty() && QFile::exists(path))
+    {
+        qDebug() << "[applyBackgroundImage] path exists";
+        QPixmap pm(path);
+        if (!pm.isNull())
+        {
+            qDebug() << "[applyBackgroundImage] path not null";
+            backgroundPixmap = pm;
+            backgroundPath = path;
+        }
+    }
+
+    qDebug() << "[applyBackgroundImage] end";
+
+    updateBackgroundVisible();
+}
+
+void CameraWall::updateBackgroundVisible()
+{
+    if (!backgroundLabel)
+        return;
+
+    if (!backgroundPixmap.isNull())
+    {
+        // A QLabel setScaledContents(true), így automatikusan kitölti a teret.
+        backgroundLabel->setPixmap(backgroundPixmap);
+        backgroundLabel->show();
+    }
+    else
+    {
+        backgroundLabel->clear();
+        backgroundLabel->hide();
+    }
+}
+
+void CameraWall::clearBackgroundImage()
+{
+    // háttér ürítése és elrejtése
+    applyBackgroundImage(QString());
+    saveViewToIni();
+    statusBar()->showMessage(Language::instance().t(
+                                 "status.bg.cleared",
+                                 "Háttérkép eltávolítva"),
+                             3000);
 }

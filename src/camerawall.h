@@ -11,6 +11,9 @@
 #include <QtMultimedia/QMediaPlayer>
 #include <QtMultimedia/QVideoSink>
 #include <QShortcut>
+#include <QLabel>
+#include <QPixmap>
+#include <QFileDialog>
 
 #include "videotile.h"
 #include "editcameradialog.h" // Camera struct itt van
@@ -42,6 +45,8 @@ private slots:
     void onTileFullscreenRequested(); // tagfüggvény slot
     void nextPage();
     void reloadAll();
+    void chooseBackgroundImage();
+    void clearBackgroundImage();
 
 private:
     // layout / nézet
@@ -63,10 +68,19 @@ private:
     void focusShow(int camIdx);
     void updateGridChecks();
 
+    // --- ÚJ: háttérkép segédek ---
+    void applyBackgroundImage(const QString &path); 
+    void updateBackgroundVisible();
+
 private:
     // --- központi stack: 0 = rács, 1 = fókusz ---
     QWidget *central{};
     QStackedLayout *stack{};
+    // háttér
+    QLabel *backgroundLabel{};  // +++
+    QString backgroundPath{};   // +++
+    QString backgroundFromIni{};   // +++
+    QPixmap backgroundPixmap{}; // +++
     // rács oldal
     QWidget *pageGrid{};
     QGridLayout *grid{};
@@ -99,7 +113,7 @@ private:
     // menük
     QAction *actFps{}, *actFull{}, *actEdit{}, *actKeepAlive{}, *actAutoRotate{},
         *actGrid22{}, *actGrid33{}, *actGrid32{}, *actReorder{};
-    QAction *actLangHu{}, *actLangEn{};
+    QAction *actLangHu{}, *actLangEn{}, *actBackground{}, *actBackgroundClear{};
 
     QMenu *mCams{}, *mView{}, *mHelp{}, *menuLanguage{}, *mGridMenu{};
     QActionGroup *gridGroup{}, *langGroup{};
