@@ -26,6 +26,7 @@
     "status.rotate": "10s rotate",
     "status.allvisible": "all visible",
     "status.grid": "Grid:",
+    "status.noimage": "No Image…",
     "dlg.edit": "Edit",
     "dlg.delete": "Delete",
     "dlg.clearall": "Clear all",

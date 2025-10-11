@@ -277,7 +277,7 @@ void VideoTile::paintEvent(QPaintEvent *)
     {
         p.fillRect(rect(), QColor(10, 12, 20));
         p.setPen(QColor("#5e6a7a"));
-        p.drawText(rect(), Qt::AlignCenter, tr("Nincs kép…"));
+        p.drawText(rect(), Qt::AlignCenter, Language::instance().t("status.noimage", "Nincs kép…"));
         return;
     }
 

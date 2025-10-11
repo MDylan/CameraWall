@@ -26,6 +26,7 @@
     "status.rotate": "10s váltás",
     "status.allvisible": "minden látható",
     "status.grid": "Rács:",
+    "status.noimage": "Nincs kép…",
     "dlg.edit": "Szerkesztés",
     "dlg.delete": "Törlés",
     "dlg.clearall": "Összes törlése",
