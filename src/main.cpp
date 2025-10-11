@@ -8,6 +8,10 @@
 #include <QWindow>
 #include <QIcon>
 #include <QLoggingCategory>
+#include <QSettings>
+#include <QFile>
+#include <QTextStream>
+#include <QDateTime>
 
 static QFile gLogFile;
 static void fileLogHandler(QtMsgType, const QMessageLogContext &, const QString &msg)
@@ -50,7 +54,11 @@ int main(int argc, char **argv)
     QApplication::setApplicationDisplayName(
         Language::instance().t("app.title", "IP Kamera fal"));
 
-    // --- Command line: --screen=<index-or-name> ---
+    // --- ini fájl (exe mellett) ---
+    const QString iniPath = QCoreApplication::applicationDirPath() + "/CameraWall.ini";
+    QSettings settings(iniPath, QSettings::IniFormat);
+
+    // --- Command line: --screen=<index-or-name>, --debug ---
     QCommandLineParser parser;
     parser.setApplicationDescription("CameraWall");
     parser.addHelpOption();
@@ -73,13 +81,22 @@ int main(int argc, char **argv)
                  << (QCoreApplication::applicationDirPath() + "/CameraWall.log");
     }
 
-    // Kijelző kiválasztása, ha megadták
+    // --- Cél képernyő meghatározása ---
+    const auto screens = QGuiApplication::screens();
     QScreen *targetScreen = nullptr;
+
+    auto findScreenByName = [&](const QString &name) -> QScreen *
+    {
+        for (QScreen *s : screens)
+            if (s->name().contains(name, Qt::CaseInsensitive))
+                return s;
+        return nullptr;
+    };
+
     if (parser.isSet(optScreen))
     {
+        // 1) Parancssor elsőbbséget élvez -> resolve + mentés ini-be
         const QString value = parser.value(optScreen).trimmed();
-        const auto screens = QGuiApplication::screens();
-
         bool ok = false;
         int idx = value.toInt(&ok);
         if (ok)
@@ -89,21 +106,48 @@ int main(int argc, char **argv)
         }
         else
         {
-            for (QScreen *s : screens)
-            {
-                if (s->name().contains(value, Qt::CaseInsensitive))
-                {
-                    targetScreen = s;
-                    break;
-                }
-            }
+            targetScreen = findScreenByName(value);
+        }
+
+        if (targetScreen)
+        {
+            // Mentsük a név + index párost
+            settings.setValue("ui/screenName", targetScreen->name());
+            settings.setValue("ui/screenIndex", screens.indexOf(targetScreen));
+            settings.sync();
+            qDebug() << "[main] --screen set -> will use screen:"
+                     << targetScreen->name()
+                     << "index:" << settings.value("ui/screenIndex").toInt();
+        }
+        else
+        {
+            qDebug() << "[main] --screen value could not be resolved:" << value;
+        }
+    }
+    else
+    {
+        // 2) Nincs parancssor -> olvasd az ini-ből
+        const QString savedName = settings.value("ui/screenName").toString();
+        const int savedIdx = settings.value("ui/screenIndex", -1).toInt();
+
+        if (!savedName.isEmpty())
+        {
+            targetScreen = findScreenByName(savedName);
+            qDebug() << "[main] ini ui/screenName =" << savedName
+                     << " -> resolved:" << (targetScreen ? targetScreen->name() : QString("<none>"));
+        }
+
+        if (!targetScreen && savedIdx >= 0 && savedIdx < screens.size())
+        {
+            targetScreen = screens.at(savedIdx);
+            qDebug() << "[main] ini ui/screenIndex =" << savedIdx
+                     << " -> fallback resolved:" << (targetScreen ? targetScreen->name() : QString("<none>"));
         }
     }
 
+    // --- Ablak létrehozás + képernyőre helyezés ---
     CameraWall w;
 
-    // A konstruktorod már fullscreenre teheti az ablakot.
-    // Ilyenkor gondoskodunk a native windowról, majd átvisszük a kívánt képernyőre.
     if (targetScreen)
     {
         if (!w.windowHandle())
@@ -112,11 +156,17 @@ int main(int argc, char **argv)
         if (w.windowHandle())
             w.windowHandle()->setScreen(targetScreen);
 
-        // Ha nem fullscreenez a konstruktor, ez jól pozicionál:
-        // (ha igen, akkor is átteszi a megfelelő képernyőre)
+        // ha a konstruktor még nem tette full screenre, ez akkor is jó kezdő pozíció
         w.setGeometry(targetScreen->availableGeometry());
+
+        qDebug() << "[main] Using screen:" << targetScreen->name()
+                 << "geometry:" << targetScreen->availableGeometry();
+    }
+    else
+    {
+        qDebug() << "[main] No target screen selected (cmd/ini). Using default screen.";
     }
 
-    w.show(); // a konstruktora már full screenre teszi, de ez itt ártalmatlan
+    w.show(); // a konstruktora már full screenre teheti, ez ártalmatlan
     return app.exec();
 }
