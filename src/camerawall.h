@@ -71,6 +71,7 @@ private:
     // --- ÚJ: háttérkép segédek ---
     void applyBackgroundImage(const QString &path); 
     void updateBackgroundVisible();
+    void showDefaultStatusHint(); // alap státuszszöveg (rács / fókusz szerint)
 
 private:
     // --- központi stack: 0 = rács, 1 = fókusz ---

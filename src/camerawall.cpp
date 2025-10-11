@@ -156,18 +156,14 @@ CameraWall::CameraWall()
         box->exec(); });
 
     updateMenuTexts();
-
-    statusBar()->showMessage(Language::instance().t(
-        "status.hint",
-        "F11 – fullscreen • Double-click/⛶: focus • Stream: as configured"));
+    showDefaultStatusHint();
 
     connect(&Language::instance(), &Language::languageChanged, this, [this](const QString &)
             {
         updateMenuTexts();
         updateAppTitle();
-        statusBar()->showMessage(Language::instance().t(
-            "status.hint",
-            "F11 – fullscreen • Double-click/⛶: focus • Stream: as configured")); });
+        showDefaultStatusHint();
+    });
 
     connect(&rotateTimer, &QTimer::timeout, this, &CameraWall::nextPage);
     rotateTimer.setInterval(10000);
@@ -536,10 +532,7 @@ void CameraWall::enterFocus(int camIdx)
     stack->setCurrentWidget(pageFocus);
 
     // Súgó a fókusz nézethez
-    statusBar()->showMessage(
-        Language::instance().t(
-            "status.focus",
-            "ESC – back to grid • ←/→ to browse"));
+    showDefaultStatusHint();
 }
 
 void CameraWall::exitFocus()
@@ -549,12 +542,6 @@ void CameraWall::exitFocus()
         stack->setCurrentWidget(pageGrid);
         return;
     }
-
-    // Általános súgó visszaállítása
-    statusBar()->showMessage(
-        Language::instance().t(
-            "status.hint",
-            "F11 – fullscreen • Double-click/⛶: focus • Stream: as configured"));
 
     // tedd vissza
     focusLayout->removeWidget(focusTile);
@@ -582,6 +569,7 @@ void CameraWall::exitFocus()
     stack->setCurrentWidget(pageGrid);
     grid->invalidate();
     grid->activate();
+    showDefaultStatusHint();
 }
 
 void CameraWall::rebuildTiles()
@@ -1018,11 +1006,34 @@ void CameraWall::updateBackgroundVisible()
 
 void CameraWall::clearBackgroundImage()
 {
-    // háttér ürítése és elrejtése
     applyBackgroundImage(QString());
     saveViewToIni();
+
+    // Rövid státusz-üzenet 3 mp-ig…
     statusBar()->showMessage(Language::instance().t(
                                  "status.bg.cleared",
                                  "Background image cleared"),
                              3000);
+
+    // …majd vissza az alap státuszra (rács/fókusz szerint).
+    QTimer::singleShot(3000, this, [this]
+                       { showDefaultStatusHint(); });
+}
+
+void CameraWall::showDefaultStatusHint()
+{
+    const bool inFocus = (stack && stack->currentWidget() == pageFocus);
+
+    if (inFocus)
+    {
+        statusBar()->showMessage(Language::instance().t(
+            "status.hint.focus",
+            "ESC – back to grid • ←/→ navigate"));
+    }
+    else
+    {
+        statusBar()->showMessage(Language::instance().t(
+            "status.hint",
+            "F11 – full screen • Double-click/⛶: focus • Single stream mode"));
+    }
 }
