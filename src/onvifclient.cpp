@@ -68,7 +68,7 @@ bool OnvifClient::postSync(const QNetworkRequest &nr, const QByteArray &payload,
         rp->abort();
         rp->deleteLater();
         if (err)
-            *err = "Időtúllépés ONVIF kérés közben.";
+            *err = "Timeout during ONVIF request.";
         return false;
     }
     if (rp->error() != QNetworkReply::NoError)
@@ -114,7 +114,7 @@ bool OnvifClient::getCapabilities(const QUrl &deviceXAddr, const QString &user, 
         }
     }
     if (err)
-        *err = "Nem találtam Media XAddr-t a GetCapabilities válaszban.";
+        *err = "I couldn't find Media XAddr in the GetCapabilities response.";
     return false;
 }
 
@@ -132,7 +132,7 @@ bool OnvifClient::getProfiles(const QUrl &mediaXAddr, const QString &user, const
     if (out.isEmpty())
     {
         if (err)
-            *err = "Nem kaptam vissza ONVIF profilokat.";
+            *err = "I did not receive any ONVIF profiles back.";
         return false;
     }
     return true;
@@ -169,7 +169,7 @@ bool OnvifClient::getStreamUri(const QUrl &mediaXAddr, const QString &user, cons
         }
     }
     if (err)
-        *err = "Nem találtam Uri mezőt a GetStreamUri válaszban.";
+        *err = "I couldn't find a Uri field in the GetStreamUri response.";
     return false;
 }
 
