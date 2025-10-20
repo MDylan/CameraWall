@@ -21,6 +21,7 @@
     "menu.zoom": "Nagyítás KI/BE",
     "menu.background" : "Háttérkép beállítása",
     "menu.background.clear": "Háttérkép törlése",
+    "menu.view.statusbar": "Státuszbár mutatása",
     "msg.exit.confirm": "Biztosan bezárjuk az alkalmazást?",
     "status.hint": "F11 – teljes képernyő • Duplakatt/⛶: fókusz • Stream: beállítás szerint",
     "status.focus": "ESC – vissza a rácshoz • ←/→ lapozás",

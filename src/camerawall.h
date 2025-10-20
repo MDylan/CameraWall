@@ -47,6 +47,7 @@ private slots:
     void reloadAll();
     void chooseBackgroundImage();
     void clearBackgroundImage();
+    void toggleStatusbarVisible();
 
 private:
     // layout / nézet
@@ -72,17 +73,18 @@ private:
     void applyBackgroundImage(const QString &path); 
     void updateBackgroundVisible();
     void showDefaultStatusHint(); // alap státuszszöveg (rács / fókusz szerint)
+    void applyStatusbarVisible();
 
 private:
     // --- központi stack: 0 = rács, 1 = fókusz ---
     QWidget *central{};
     QStackedLayout *stack{};
     // háttér
-    QLabel *backgroundLabel{};  // +++
-    QString backgroundPath{};   // +++
+    QLabel *backgroundLabel{};  
+    QString backgroundPath{};   
     bool backgroundCleared = false;
-    QString backgroundFromIni{};   // +++
-    QPixmap backgroundPixmap{}; // +++
+    QString backgroundFromIni{};   
+    QPixmap backgroundPixmap{}; 
     // rács oldal
     QWidget *pageGrid{};
     QGridLayout *grid{};
@@ -106,6 +108,7 @@ private:
     bool m_limitFps15{true};
     bool m_autoRotate{true};
     bool m_keepBackgroundStreams{true};
+    bool m_statusbarVisible{true};
 
     // fókusz állapot
     int m_focusCamIdx{-1};
@@ -115,7 +118,7 @@ private:
     // menük
     QAction *actFps{}, *actFull{}, *actEdit{}, *actKeepAlive{}, *actAutoRotate{},
         *actGrid22{}, *actGrid33{}, *actGrid32{}, *actReorder{};
-    QAction *actLangHu{}, *actLangEn{}, *actBackground{}, *actBackgroundClear{};
+    QAction *actLangHu{}, *actLangEn{}, *actBackground{}, *actBackgroundClear{}, *actStatusbar{};
 
     QMenu *mCams{}, *mView{}, *mHelp{}, *menuLanguage{}, *mGridMenu{};
     QActionGroup *gridGroup{}, *langGroup{};

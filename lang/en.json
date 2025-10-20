@@ -21,6 +21,7 @@
     "menu.zoom": "Zoom IN/OUT",
     "menu.background": "Set background image",
     "menu.background.clear": "Clear background",
+    "menu.view.statusbar": "Show status bar",
     "msg.exit.confirm": "Are you sure to exit the program?",
     "status.hint": "F11 – fullscreen • Double-click/⛶: focus • Stream: as configured",
     "status.focus": "ESC – back to grid • ←/→ to browse",

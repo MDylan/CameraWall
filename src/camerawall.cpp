@@ -94,6 +94,9 @@ CameraWall::CameraWall()
     actAutoRotate->setCheckable(true);
     actKeepAlive = mView->addAction({}, this, &CameraWall::toggleKeepAlive);
     actKeepAlive->setCheckable(true);
+    // Státuszbár megjelenítése
+    actStatusbar = mView->addAction({}, this, &CameraWall::toggleStatusbarVisible);
+    actStatusbar->setCheckable(true);
 
     // Grid menü (ÚJ: 3×2 is)
     mGridMenu = new QMenu(mView);
@@ -175,6 +178,10 @@ CameraWall::CameraWall()
     actFps->setChecked(m_limitFps15);
     actAutoRotate->setChecked(m_autoRotate);
     actKeepAlive->setChecked(m_keepBackgroundStreams);
+
+    // státuszbár
+    actStatusbar->setChecked(m_statusbarVisible);
+    applyStatusbarVisible(); // tényleges elrejtés/megjelenítés
 
     // nyelv pipák
     if (Language::instance().current() == "en")
@@ -704,6 +711,7 @@ void CameraWall::loadFromIni()
     m_keepBackgroundStreams = s.value("keepAlive", true).toBool();
     backgroundFromIni = s.value("backgroundPath").toString();
     backgroundCleared = s.value("backgroundCleared", false).toBool();
+    m_statusbarVisible = s.value("statusbarVisible", true).toBool();
     qDebug() << "[loadFromIni] backgroundPath=" << backgroundFromIni;
 
     if (backgroundFromIni.isEmpty() && !backgroundCleared)
@@ -770,6 +778,7 @@ void CameraWall::saveViewToIni()
     s.setValue("keepAlive", m_keepBackgroundStreams);
     s.setValue("backgroundPath", backgroundPath);
     s.setValue("backgroundCleared", backgroundCleared);
+    s.setValue("statusbarVisible", m_statusbarVisible);
     s.endGroup();
     s.sync();
 }
@@ -826,6 +835,9 @@ void CameraWall::updateMenuTexts()
         actBackground->setText(Language::instance().t("menu.background", "Set background image"));
     if (actBackgroundClear)
         actBackgroundClear->setText(Language::instance().t("menu.background.clear", "Clear background"));
+    if (actStatusbar)
+        actStatusbar->setText(Language::instance().t(
+            "menu.view.statusbar", "Show status bar"));
 }
 
 void CameraWall::updateAppTitle()
@@ -1061,4 +1073,23 @@ void CameraWall::showDefaultStatusHint()
             "status.hint",
             "F11 – full screen • Double-click/⛶: focus • Single stream mode"));
     }
+}
+void CameraWall::toggleStatusbarVisible()
+{
+    m_statusbarVisible = !m_statusbarVisible;
+    applyStatusbarVisible();
+    saveViewToIni(); // mentsük azonnal
+}
+
+void CameraWall::applyStatusbarVisible()
+{
+    if (statusBar())
+        statusBar()->setVisible(m_statusbarVisible);
+
+    // Ha elrejtjük, ne írjunk üzenetet
+    if (!m_statusbarVisible)
+        return;
+
+    // ha látható, frissítsük a tipp-szöveget az aktuális nézet szerint
+    showDefaultStatusHint();
 }
