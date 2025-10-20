@@ -1,5 +1,6 @@
 {
     "app.title": "IP Camera Wall",
+    "language" : "English",
     "menu.cameras": "Cameras",
     "menu.add": "Add…",
     "menu.edit": "Edit…",
