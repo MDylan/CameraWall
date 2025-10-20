@@ -31,6 +31,7 @@
     "status.noimage": "Nincs kép…",
     "status.bg.cleared": "Háttérkép eltávolítva",
     "status.count0": "0 kamera",
+    "dlg.exit": "Kilépés",
     "dlg.edit": "Szerkesztés",
     "dlg.delete": "Törlés",
     "dlg.clearall": "Összes törlése",
@@ -54,5 +55,6 @@
     "editcamera.connecting": "Kapcsolódás…",
     "editcamera.error_getcapabilities": "GetCapabilities hiba:",
     "editcamera.error_getprofiles": "GetProfiles hiba:",
-    "editcamera.profiles_loaded": "Profilok betöltve."
+    "editcamera.profiles_loaded": "Profilok betöltve.",
+    "msg.missingonvif" : "Hiányzó ONVIF profil token"
 }

@@ -79,7 +79,7 @@ CameraWall::CameraWall()
     mCams->addSeparator();
     actExit = mCams->addAction({}, this, [this]
                                {
-        if (Util::askOkCancel(this,"dlg.exit","Kilépés","msg.exit","Biztosan kilépsz az alkalmazásból?")) {
+        if (Util::askOkCancel(this,"dlg.exit","Exit","msg.exit","Are you sure to exit?")) {
             qApp->quit();
         } });
 
@@ -468,7 +468,7 @@ QUrl CameraWall::playbackUrlFor(int camIdx, bool /*high*/, QString *errOut)
         if (c.onvifChosenToken.isEmpty())
         {
             if (errOut)
-                *errOut = "Hiányzó ONVIF profil token";
+                *errOut = Language::instance().t("msg.missingonvif", "Missing ONVIF profile token");
             return QUrl();
         }
         if (!cli.getStreamUri(media, c.onvifUser, c.onvifPass, c.onvifChosenToken, uri, &err))
@@ -1052,7 +1052,7 @@ void CameraWall::showDefaultStatusHint()
     if (inFocus)
     {
         statusBar()->showMessage(Language::instance().t(
-            "status.hint.focus",
+            "status.focus",
             "ESC – back to grid • ←/→ navigate"));
     }
     else

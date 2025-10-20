@@ -31,6 +31,7 @@
     "status.noimage": "No Image…",
     "status.bg.cleared" : "Background image cleared",
     "status.count0": "0 camera",
+    "dlg.exit": "Exit",
     "dlg.edit": "Edit",
     "dlg.delete": "Delete",
     "dlg.clearall": "Clear all",
@@ -54,5 +55,6 @@
     "editcamera.connecting": "Connecting…",
     "editcamera.error_getcapabilities": "GetCapabilities error:",
     "editcamera.error_getprofiles": "GetProfiles error:",
-    "editcamera.profiles_loaded": "Profiles loaded."
+    "editcamera.profiles_loaded": "Profiles loaded.",
+    "msg.missingonvif": "Missing ONVIF profile token"
 }
