@@ -154,7 +154,7 @@ CameraWall::CameraWall()
             "Just a simple IP camera software. Enjoy! :)<br>"
             "Created by: Dávid Molnár<br>"
             "<a href=\"https://github.com/MDylan/CameraWall\">github.com/MDylan/CameraWall</a><br>"
-            "<br>V1.1 - © 2025");
+            "<br>V1.2 - © 2025");
         box->setStandardButtons(QMessageBox::Ok);
         box->exec(); });
 
