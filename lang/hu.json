@@ -58,5 +58,9 @@
     "editcamera.error_getcapabilities": "GetCapabilities hiba:",
     "editcamera.error_getprofiles": "GetProfiles hiba:",
     "editcamera.profiles_loaded": "Profilok betöltve.",
-    "msg.missingonvif" : "Hiányzó ONVIF profil token"
+    "msg.missingonvif" : "Hiányzó ONVIF profil token",
+    "label.aspect" : "Képarány",
+    "aspect.fit" : "Teljes kép",
+    "aspect.stretch": "Kitöltés nyújtással",
+    "aspect.fill": "Kitöltés vágással"
 }

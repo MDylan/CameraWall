@@ -16,18 +16,25 @@ class VideoTile : public QWidget
 {
     Q_OBJECT
 public:
+    enum AspectMode
+    {
+        Fit = 0,
+        Stretch = 1,
+        Fill = 2
+    };
+    Q_ENUM(AspectMode)
+
     explicit VideoTile(bool limitFps15, QWidget *parent = nullptr);
 
     void setName(const QString &n);
     void playUrl(const QUrl &url);
     void stop();
 
-    // contain/cover mód váltás (true = cover/fedje ki a csempét)
-    void setAspectFill(bool fill)
-    {
-        m_aspectFill = fill;
-        update();
-    }
+    void setAspectMode(AspectMode m);
+    AspectMode aspectMode() const { return m_aspectMode; }
+
+    // VISSZAFELÉ KOMPATIBILITÁS (ha bárhol még hívod):
+    void setAspectFill(bool on) { setAspectMode(on ? Fill : Fit); }
 
 signals:
     void fullscreenRequested(); // gomb vagy dupla katt
@@ -60,7 +67,8 @@ private:
     // lejátszás
     QMediaPlayer *m_player{};
     QVideoSink *m_sink{};
-
+    AspectMode m_aspectMode = Fit; // alapértelmezett
+    AspectMode m_aspectModeRtsp = Fit; // alapértelmezett
     // megjelenítés
     QImage m_frame; // utolsó kép
     bool m_hasFrame{false};

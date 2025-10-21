@@ -272,27 +272,46 @@ void VideoTile::paintEvent(QPaintEvent *)
     QPainter p(this);
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
 
-    // háttér (ha nincs frame)
+    // --- háttér és "No Image…" ha nincs frame ---
     if (!m_hasFrame || m_frame.isNull())
     {
         p.fillRect(rect(), QColor(10, 12, 20));
         p.setPen(QColor("#5e6a7a"));
-        p.drawText(rect(), Qt::AlignCenter, Language::instance().t("status.noimage", "No Image…"));
+        p.drawText(rect(), Qt::AlignCenter,
+                   Language::instance().t("status.noimage", "No Image…"));
         return;
     }
 
     const QRect target = this->rect();
-    if (!m_aspectFill)
+
+    // --- Stretch: kitöltés torzítással, nincs oldalarány-megőrzés ---
+    if (m_aspectMode == Stretch) // VideoTile::Stretch
     {
-        // contain
-        QImage scaled = m_frame.scaled(target.size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        const QPoint topLeft(target.center() - QPoint(scaled.width() / 2, scaled.height() / 2));
         p.fillRect(target, Qt::black);
+        // Skálázunk célméretre oldalarány figyelmen kívül hagyásával
+        const QImage scaled = m_frame.scaled(target.size(),
+                                             Qt::IgnoreAspectRatio,
+                                             Qt::SmoothTransformation);
+        const QPoint topLeft(target.center() - QPoint(scaled.width() / 2, scaled.height() / 2));
         p.drawImage(QRect(topLeft, scaled.size()), scaled);
+        return;
     }
-    else
+
+    // --- Fit: teljes kép látszik (contain, letterbox), oldalarány MEGŐRZÉS ---
+    if (m_aspectMode == Fit) // VideoTile::Fit
     {
-        // cover
+        p.fillRect(target, Qt::black);
+        QImage scaled = m_frame.scaled(target.size(),
+                                       Qt::KeepAspectRatio,
+                                       Qt::SmoothTransformation);
+        const QPoint topLeft(target.center() - QPoint(scaled.width() / 2, scaled.height() / 2));
+        p.drawImage(QRect(topLeft, scaled.size()), scaled);
+        return;
+    }
+
+    // --- Fill: csempe teljes kitöltése (cover), oldalarány MEGŐRZÉS, szükség szerint vágás ---
+    if (m_aspectMode == Fill) // VideoTile::Fill
+    {
         const double sw = m_frame.width();
         const double sh = m_frame.height();
         const double dw = target.width();
@@ -304,12 +323,14 @@ void VideoTile::paintEvent(QPaintEvent *)
         QRectF src;
         if (sAspect > dAspect)
         {
+            // Forrás szélesebb: magasság kitölt, szélességből vágunk
             const double newW = sh * dAspect;
             const double x = (sw - newW) / 2.0;
             src = QRectF(x, 0, newW, sh);
         }
         else
         {
+            // Forrás magasabb: szélesség kitölt, magasságból vágunk
             const double newH = sw / dAspect;
             const double y = (sh - newH) / 2.0;
             src = QRectF(0, y, sw, newH);
@@ -317,7 +338,16 @@ void VideoTile::paintEvent(QPaintEvent *)
 
         p.fillRect(target, Qt::black);
         p.drawImage(target, m_frame, src);
+        return;
     }
+
+    // Biztonsági ág (ha valamiért ismeretlen mód jut ide): viselkedjünk "Fit"-ként
+    p.fillRect(target, Qt::black);
+    QImage scaled = m_frame.scaled(target.size(),
+                                   Qt::KeepAspectRatio,
+                                   Qt::SmoothTransformation);
+    const QPoint topLeft(target.center() - QPoint(scaled.width() / 2, scaled.height() / 2));
+    p.drawImage(QRect(topLeft, scaled.size()), scaled);
 }
 
 void VideoTile::resizeEvent(QResizeEvent *e)
@@ -381,4 +411,12 @@ void VideoTile::recreatePipeline()
     connect(m_player, &QMediaPlayer::mediaStatusChanged, this, &VideoTile::onMediaStatusChanged);
     connect(m_player, &QMediaPlayer::errorOccurred, this, &VideoTile::onErrorOccurred);
     connect(m_player, &QMediaPlayer::playbackStateChanged, this, &VideoTile::onPlaybackStateChanged);
+}
+void VideoTile::setAspectMode(VideoTile::AspectMode m)
+{
+    if (m_aspectMode == m)
+        return;
+    m_aspectMode = m;
+    qDebug() << "[VideoTile] setAspectMode =" << static_cast<int>(m_aspectMode);
+    update(); // újrarajzolás
 }

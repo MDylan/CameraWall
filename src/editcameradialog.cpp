@@ -41,27 +41,40 @@ EditCameraDialog::EditCameraDialog(const Camera *existing, QWidget *parent)
     ovForm->addRow(Language::instance().t("editcamera.password", "Password:"), pass);
     QPushButton *btnFetch = new QPushButton(Language::instance().t("editcamera.retrieveprofiles", "Get Profiles"));
     ovForm->addRow(btnFetch);
-    profileCombo = new QComboBox;
-    ovForm->addRow(Language::instance().t("editcamera.profileuse", "Profile to use:"), profileCombo);
-    info = new QLabel;
-    info->setStyleSheet("color:#9fb2c8");
-    ovForm->addRow(info);
 
-    tabs->addTab(rtspTab, Language::instance().t("editcamera.rtsp_manual", "RTSP (manual)"));
-    tabs->addTab(onvifTab, "ONVIF");
+    cbAspect = new QComboBox(this);
+    cbAspect->addItem(Language::instance().t("aspect.fit", "Fit"), (int)VideoTile::AspectMode::Fit);
+    cbAspect->addItem(Language::instance().t("aspect.stretch", "Stretch"), (int)VideoTile::AspectMode::Stretch);
+    cbAspect->addItem(Language::instance().t("aspect.fill", "Fill"), (int)VideoTile::AspectMode::Fill);
+    ovForm->addRow(Language::instance().t("label.aspect", "Aspect ratio"), cbAspect);
 
-    auto *mainLay = new QVBoxLayout(this);
-    mainLay->addWidget(tabs);
-    auto *btns = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    mainLay->addWidget(btns);
-    connect(btns, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(btns, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    cbAspectRtsp = new QComboBox(this);
+    cbAspectRtsp->addItem(Language::instance().t("aspect.fit", "Fit"), (int)VideoTile::AspectMode::Fit);
+    cbAspectRtsp->addItem(Language::instance().t("aspect.stretch", "Stretch"), (int)VideoTile::AspectMode::Stretch);
+    cbAspectRtsp->addItem(Language::instance().t("aspect.fill", "Fill"), (int)VideoTile::AspectMode::Fill);
+    rtForm->addRow(Language::instance().t("label.aspect", "Aspect ratio"), cbAspectRtsp);
 
-    connect(btnFetch, &QPushButton::clicked, this, [this]
-            { fetchProfiles(); });
+     profileCombo = new QComboBox;
+     ovForm->addRow(Language::instance().t("editcamera.profileuse", "Profile to use:"), profileCombo);
+     info = new QLabel;
+     info->setStyleSheet("color:#9fb2c8");
+     ovForm->addRow(info);
 
-    if (existing)
-        setFromCamera(*existing);
+     tabs->addTab(rtspTab, Language::instance().t("editcamera.rtsp_manual", "RTSP (manual)"));
+     tabs->addTab(onvifTab, "ONVIF");
+
+     auto *mainLay = new QVBoxLayout(this);
+     mainLay->addWidget(tabs);
+     auto *btns = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+     mainLay->addWidget(btns);
+     connect(btns, &QDialogButtonBox::accepted, this, &QDialog::accept);
+     connect(btns, &QDialogButtonBox::rejected, this, &QDialog::reject);
+
+     connect(btnFetch, &QPushButton::clicked, this, [this]
+             { fetchProfiles(); });
+
+     if (existing)
+         setFromCamera(*existing);
 }
 
 void EditCameraDialog::setFromCamera(const Camera &c)
@@ -71,6 +84,7 @@ void EditCameraDialog::setFromCamera(const Camera &c)
         tabs->setCurrentIndex(0);
         nameRtsp->setText(c.name);
         urlRtsp->setText(QString::fromUtf8(c.rtspManual.toEncoded()));
+        cbAspectRtsp->setCurrentIndex(c.aspectModeRtsp);
     }
     else
     {
@@ -82,8 +96,11 @@ void EditCameraDialog::setFromCamera(const Camera &c)
         user->setText(c.onvifUser);
         pass->setText(c.onvifPass);
         lastMediaXAddr = c.onvifMediaXAddr.toString();
+        
         // előre beállított token megjelölése (ha volt)
         preselectedToken = c.onvifChosenToken;
+        fetchProfiles();
+        cbAspect->setCurrentIndex(c.aspectMode);
     }
 }
 
@@ -114,7 +131,9 @@ Camera EditCameraDialog::cameraResult() const
         if (c.name.isEmpty())
             c.name = device.host();
         c.rtspUriCached.clear(); // újra kérjük majd szükség esetén
+        c.aspectMode = (VideoTile::AspectMode)cbAspect->currentData().toInt();
     }
+    
     return c;
 }
 
@@ -168,4 +187,27 @@ void EditCameraDialog::fetchProfiles()
     }
 
     info->setText(Language::instance().t("editcamera.profiles_loaded", "Profiles loaded."));
+}
+void EditCameraDialog::setAspectModeInt(int mode)
+{
+    if (!cbAspect)
+        return;
+    int idx = cbAspect->findData(mode);
+    if (idx < 0)
+        idx = 0;
+    cbAspect->setCurrentIndex(idx);
+    cbAspectRtsp->setCurrentIndex(idx);
+}
+
+int EditCameraDialog::aspectModeInt() const
+{
+    if (!cbAspect)
+        return 0;
+    return cbAspect->currentData().toInt();
+}
+int EditCameraDialog::aspectModeRtspInt() const
+{
+    if (!cbAspectRtsp)
+        return 0;
+    return cbAspectRtsp->currentData().toInt();
 }

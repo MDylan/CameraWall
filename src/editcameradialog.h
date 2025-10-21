@@ -10,6 +10,7 @@
 #include "util.h"
 #include "onvifclient.h"
 #include "language.h"
+#include "videotile.h"
 
 // A teljes app Camera modellje
 struct Camera
@@ -34,6 +35,9 @@ struct Camera
 
     // Cache-elt (feloldott) RTSP URI (ha már lekértük)
     QString rtspUriCached;
+
+    VideoTile::AspectMode aspectMode = VideoTile::AspectMode::Fit;
+    VideoTile::AspectMode aspectModeRtsp = VideoTile::AspectMode::Fit;
 };
 
 class EditCameraDialog : public QDialog
@@ -44,6 +48,9 @@ public:
 
     void setFromCamera(const Camera &c);
     Camera cameraResult() const;
+    void setAspectModeInt(int mode); // 0/1/2
+    int aspectModeInt() const;       // 0/1/2
+    int aspectModeRtspInt() const;       // 0/1/2
 
 private:
     void fetchProfiles();
@@ -56,6 +63,8 @@ private:
     QLineEdit *nameOnvif{}, *ip{}, *user{}, *pass{};
     QSpinBox *port{};
     QComboBox *profileCombo{}; // egyetlen legördülő: a választott profil
+    QComboBox *cbAspect = nullptr;
+    QComboBox *cbAspectRtsp = nullptr;
     QLabel *info{};
 
     QList<OnvifProfile> fetchedProfiles;

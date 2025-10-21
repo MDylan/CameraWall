@@ -623,18 +623,22 @@ void CameraWall::rebuildTiles()
         tile->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         tiles << tile;
 
-        // FONTOS: téglalap rácshoz a sor = shown / gridCols, oszlop = shown % gridCols
+        // rácspozíció: sor = shown / gridCols, oszlop = shown % gridCols
         const int r = shown / gridCols;
         const int c = shown % gridCols;
         grid->addWidget(tile, r, c);
-        tile->setName(cams[i].name);
 
+        // név + URL
+        tile->setName(cams[i].name);
         QString err;
         QUrl play = playbackUrlFor(i, false, &err);
         if (play.isEmpty())
             tile->setToolTip(err);
         else
             tile->playUrl(play);
+
+        // --- Aspect mód alkalmazása a csempére ---
+        tile->setAspectMode(cams[i].aspectMode);
 
         connect(tile, &VideoTile::fullscreenRequested, this, &CameraWall::onTileFullscreenRequested);
         tileIndexMap[tile] = i;
@@ -664,7 +668,7 @@ void CameraWall::loadFromIni()
 {
     QSettings s(Util::iniPath(), QSettings::IniFormat);
 
-    // Cameras (változatlan)
+    // Cameras
     cams.clear();
     s.beginGroup("Cameras");
     int count = s.value("count", 0).toInt();
@@ -687,6 +691,26 @@ void CameraWall::loadFromIni()
             c.onvifChosenToken = s.value("onvif_token").toString();
             c.rtspUriCached = s.value("rtsp_cached").toString();
         }
+
+        // --- Aspect mód betöltése (alap: Fit) ---
+        auto strToAspect = [](const QString &v) -> VideoTile::AspectMode
+        {
+            const QString x = v.toLower();
+            if (x == "stretch")
+                return VideoTile::AspectMode::Stretch;
+            if (x == "fill")
+                return VideoTile::AspectMode::Fill;
+            return VideoTile::AspectMode::Fit;
+        };
+        if (c.mode == Camera::RTSP)
+        {
+            c.aspectMode = strToAspect(s.value("aspectRtsp", "fit").toString());
+        }
+        else
+        {
+            c.aspectMode = strToAspect(s.value("aspect", "fit").toString());
+        }
+
         if (c.name.isEmpty())
             c.name = (c.mode == Camera::RTSP ? c.rtspManual.host() : c.onvifDeviceXAddr.host());
         cams << c;
@@ -694,9 +718,9 @@ void CameraWall::loadFromIni()
     }
     s.endGroup();
 
-    // View – ÚJ: gridRC (egy számként, pl. 32)
+    // View – grid, egyéb beállítások
     s.beginGroup("View");
-    const int rc = s.value("gridN", 22).toInt(); // visszafelé kompatibilitás: ugyanaz a kulcs
+    const int rc = s.value("gridN", 22).toInt(); // 22=2×2, 33=3×3, 32=3×2 (oszlop×sor)
     int cols = rc / 10;
     int rows = rc % 10;
     if (cols <= 0)
@@ -719,21 +743,14 @@ void CameraWall::loadFromIni()
         const QString exeDir = QCoreApplication::applicationDirPath();
         const QString defaultBg = QDir(exeDir).filePath("background.png");
         if (QFile::exists(defaultBg))
-        {
             backgroundFromIni = defaultBg;
-        }
     }
 
     if (!backgroundFromIni.isEmpty() && QFile::exists(backgroundFromIni))
-    {
         applyBackgroundImage(backgroundFromIni);
-    }
     else
-    {
-        applyBackgroundImage(QString()); // üres háttér
-    }
+        applyBackgroundImage(QString());
 
-    //applyBackgroundImage(backgroundFromIni); // ez kezeli a nem létező fájlt is
     s.endGroup();
 }
 
@@ -743,6 +760,21 @@ void CameraWall::saveCamerasToIni()
     s.beginGroup("Cameras");
     s.remove("");
     s.setValue("count", cams.size());
+
+    auto aspectToStr = [](VideoTile::AspectMode m) -> QString
+    {
+        switch (m)
+        {
+        case VideoTile::AspectMode::Stretch:
+            return "stretch";
+        case VideoTile::AspectMode::Fill:
+            return "fill";
+        case VideoTile::AspectMode::Fit:
+        default:
+            return "fit";
+        }
+    };
+
     for (int i = 0; i < cams.size(); ++i)
     {
         s.beginGroup(QString("Camera%1").arg(i));
@@ -762,6 +794,11 @@ void CameraWall::saveCamerasToIni()
             s.setValue("onvif_token", c.onvifChosenToken);
             s.setValue("rtsp_cached", c.rtspUriCached);
         }
+
+        // --- Aspect mód mentése ---
+        s.setValue("aspect", aspectToStr(c.aspectMode));
+        s.setValue("aspectRtsp", aspectToStr(c.aspectModeRtsp));
+
         s.endGroup();
     }
     s.endGroup();
